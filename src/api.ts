@@ -72,6 +72,16 @@ export const cache = {
     }
   },
   put: (id: string, snap: Snapshot) => store.set(`taite:cache:${id}`, JSON.stringify(snap)),
+  remove: (id: string) => store.set(`taite:cache:${id}`, null),
+}
+
+/** この端末から一覧・キャッシュ・選んだDJを消す */
+export function forget(id: string) {
+  mine.remove(id)
+  gigs.remove(id)
+  cache.remove(id)
+  store.set(`taite:me:${id}`, null)
+  store.set(`taite:me:${id}:ack`, null)
 }
 
 /* ---------- サーバー ---------- */
@@ -108,6 +118,15 @@ export async function saveEvent(id: string, key: string, data: EventData): Promi
   return Number((await res.json()).rev) || 0
 }
 
+export async function deleteEvent(id: string, key: string): Promise<void> {
+  const res = await fetch(`${API}/${encodeURIComponent(id)}`, {
+    method: 'DELETE',
+    headers: { authorization: `Bearer ${key}` },
+  })
+  if (res.status === 403 || res.status === 401) throw new EditKeyError('This edit link is not valid')
+  if (!res.ok && res.status !== 404) throw new Error(`Delete failed (${res.status})`)
+}
+
 /**
  * リアルタイムの更新を受け取る。接続が切れたら少しずつ間隔をあけてつなぎ直す。
  * onStatus: 'live' = 最新の内容を受け取れている / 'offline' = つながっていない（保存済みの内容で動いている）
@@ -116,6 +135,7 @@ export function subscribe(
   id: string,
   onSnap: (snap: Snapshot) => void,
   onStatus: (s: 'live' | 'offline') => void,
+  onGone?: () => void,
 ): () => void {
   let ws: WebSocket | null = null
   let closed = false
@@ -145,9 +165,15 @@ export function subscribe(
         /* 壊れたメッセージは無視 */
       }
     }
-    ws.onclose = () => {
+    ws.onclose = (e) => {
       clearInterval(pingTimer)
       if (closed) return
+      if (e.code === 4404) {
+        // 削除された
+        closed = true
+        onGone?.()
+        return
+      }
       onStatus('offline')
       retryTimer = window.setTimeout(connect, Math.min(30_000, 1000 * 2 ** retry++))
     }

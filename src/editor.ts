@@ -1,5 +1,5 @@
 import QRCode from 'qrcode'
-import { EditKeyError, mine, saveEvent } from './api'
+import { deleteEvent, EditKeyError, forget, mine, saveEvent } from './api'
 import { fromMin, resolve, toMin, tzOffsetFor, type EventData, type Slot } from './data'
 import { icon } from './icons'
 import { pickDate, pickTime } from './picker'
@@ -100,6 +100,8 @@ export function renderEditor(root: HTMLElement, ctx: { id: string; key: string; 
         </span>
       </div>
     </div>
+
+    <button id="delete" class="danger" type="button">Delete Timetable</button>
   </div>`
 
   const $ = <T extends HTMLElement>(id: string) => root.querySelector<T>('#' + id)!
@@ -361,6 +363,23 @@ export function renderEditor(root: HTMLElement, ctx: { id: string; key: string; 
       drawQr()
     }
   })
+  $('delete').addEventListener('click', async () => {
+    if (!confirm(`Delete "${ev.t || 'Untitled'}"?\nDJ and public links will stop working. This can't be undone.`)) return
+    const btn = $<HTMLButtonElement>('delete')
+    btn.disabled = true
+    disposed = true // 保存を止める
+    clearTimeout(saveTimer)
+    try {
+      await deleteEvent(id, key)
+      forget(id)
+      location.replace('#/')
+    } catch (err) {
+      disposed = false
+      btn.disabled = false
+      alert(err instanceof EditKeyError ? err.message : "Can't delete offline. Connect to the internet and try again.")
+    }
+  })
+
   if ('share' in navigator) root.querySelectorAll<HTMLElement>('[data-share]').forEach((b) => (b.hidden = false))
 
   // 画面を離れる前に、保存していない変更を送る

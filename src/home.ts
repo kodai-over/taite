@@ -6,7 +6,7 @@ import { esc } from './util'
 /**
  * トップ画面: タイムテーブルの一覧と、新規作成のプラスボタンだけ。
  * 自分が作ったもの・DJ用リンクで開いたものを1つにまとめ、タップでタイムテーブル画面を開く
- * 自分が作ったものには編集ボタンを付ける（編集画面へはここからだけ行ける）。一覧はこの端末に保存（ログインなし）。
+ * 自分が作ったものには編集ボタンを付ける（編集・削除は編集画面でだけ行う）。一覧はこの端末に保存（ログインなし）。
  */
 export function renderHome(root: HTMLElement): () => void {
   const render = () => {
@@ -37,7 +37,6 @@ export function renderHome(root: HTMLElement): () => void {
                   ? `<a class="ibtn edit" href="#/edit/${esc(x.id)}/${esc(keys.get(x.id)!)}" aria-label="Edit Timetable" title="Edit">${icon.edit}</a>`
                   : ''
               }
-              <button type="button" class="del" data-id="${esc(x.id)}" data-own="${keys.has(x.id) ? 1 : ''}" aria-label="Remove from This List" title="Remove from This List">${icon.remove}</button>
             </li>`,
               )
               .join('')}</ul>`
@@ -46,18 +45,7 @@ export function renderHome(root: HTMLElement): () => void {
     </div>`
   }
 
-  // 一覧から外す（タイムテーブル自体は消えない。リンクがあればまた開ける）
-  const onClick = (e: Event) => {
-    const b = (e.target as HTMLElement).closest<HTMLButtonElement>('.del')
-    if (!b) return
-    const id = b.dataset.id!
-    if (b.dataset.own && !confirm('Remove this timetable from this device?\nKeep the edit link if you want to edit it again.')) return
-    mine.remove(id)
-    gigs.remove(id)
-    render()
-  }
-  root.addEventListener('click', onClick)
   render()
   document.title = 'TAITE'
-  return () => root.removeEventListener('click', onClick)
+  return () => {}
 }

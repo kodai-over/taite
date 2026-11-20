@@ -1,4 +1,4 @@
-import { cache, fetchEvent, subscribe, type Snapshot } from './api'
+import { cache, fetchEvent, forget, subscribe, type Snapshot } from './api'
 import type { EventData } from './data'
 import { icon } from './icons'
 
@@ -38,6 +38,14 @@ export function live(
     root.innerHTML = `<div class="error"><h1>${title}</h1><p>${text}</p><a class="go" href="#/">${icon.home}<span>All Timetables</span></a></div>`
   }
 
+  // 削除されたタイムテーブル: 端末の一覧・キャッシュからも消す
+  const gone = () => {
+    forget(id)
+    unsubscribe()
+    disposeView()
+    disposeView = () => {}
+  }
+
   const cached = cache.get(id)
   if (cached) show(cached)
   else root.innerHTML = '<div class="loading" aria-busy="true">Loading…</div>'
@@ -47,8 +55,9 @@ export function live(
       if (snap) {
         cache.put(id, snap)
         show(snap)
-      } else if (!cached) {
-        message('Timetable not found', 'The link may be wrong, or the timetable was removed. Ask the organizer for the link again.')
+      } else {
+        gone()
+        message('Timetable not found', 'The link may be wrong, or the timetable was deleted. Ask the organizer for the link again.')
       }
     })
     .catch(() => {
@@ -64,6 +73,10 @@ export function live(
     (s) => {
       status = s
       applyStatus()
+    },
+    () => {
+      gone()
+      message('Timetable deleted', 'The organizer deleted this timetable.')
     },
   )
 

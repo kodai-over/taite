@@ -293,6 +293,12 @@ body[data-level='over'] .display { cursor: pointer; }
 }
 .go .ic { width: 18px; height: 18px; }
 .go.disabled, .ibtn:disabled { opacity: 0.35; pointer-events: none; }
+.danger {
+  width: 100%; min-height: 52px; margin-top: 32px; border: 0; border-radius: var(--r);
+  background: transparent; color: var(--w1); font-size: 16px; font-weight: 600;
+}
+.danger:active { background: var(--raised); }
+.danger:disabled { opacity: 0.4; }
 
 /* ==========================================================================
    選択パネル（下からせり上がる）

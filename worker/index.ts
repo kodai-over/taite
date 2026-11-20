@@ -8,6 +8,7 @@
  *   POST /api/events              新規作成 → { id, key, rev }
  *   GET  /api/events/:id          読み込み → { data, rev, updatedAt }
  *   PUT  /api/events/:id          更新（Authorization: Bearer <key>）→ { rev }
+ *   DELETE /api/events/:id        削除（Authorization: Bearer <key>）
  *   GET  /api/events/:id/ws       WebSocket。接続直後と更新のたびに { type: 'update', data, rev } が届く
  */
 import { DurableObject } from 'cloudflare:workers'
@@ -99,6 +100,13 @@ export default {
       return res.ok ? json({ rev: res.rev }) : json({ error: res.error }, res.status)
     }
 
+    if (req.method === 'DELETE') {
+      const key = (req.headers.get('authorization') || '').replace(/^Bearer\s+/i, '')
+      if (!key) return json({ error: 'Missing edit key' }, 401)
+      const res = await room.remove(await sha256(key))
+      return res.ok ? json({ ok: true }) : json({ error: res.error }, res.status)
+    }
+
     return json({ error: 'Method not allowed' }, 405)
   },
 } satisfies ExportedHandler<Env>
@@ -117,10 +125,8 @@ export class EventRoom extends DurableObject<Env> {
     return { data, rev: (m.get('rev') as number) ?? 1, updatedAt: (m.get('updatedAt') as number) ?? 0 }
   }
 
-  async write(
-    data: EventData,
-    keyHash: string,
-  ): Promise<{ ok: true; rev: number } | { ok: false; status: 403 | 404; error: string }> {
+  /** 編集用の鍵が正しいか */
+  private async check(keyHash: string): Promise<{ ok: false; status: 403 | 404; error: string } | null> {
     const stored = await this.ctx.storage.get<string>('keyHash')
     if (!stored) return { ok: false, status: 404, error: 'Not found' }
     const a = new TextEncoder().encode(stored)
@@ -128,6 +134,15 @@ export class EventRoom extends DurableObject<Env> {
     if (a.byteLength !== b.byteLength || !crypto.subtle.timingSafeEqual(a, b)) {
       return { ok: false, status: 403, error: 'Wrong edit key' }
     }
+    return null
+  }
+
+  async write(
+    data: EventData,
+    keyHash: string,
+  ): Promise<{ ok: true; rev: number } | { ok: false; status: 403 | 404; error: string }> {
+    const bad = await this.check(keyHash)
+    if (bad) return bad
     const rev = ((await this.ctx.storage.get<number>('rev')) ?? 1) + 1
     const updatedAt = Date.now()
     await this.ctx.storage.put({ data, rev, updatedAt })
@@ -143,12 +158,28 @@ export class EventRoom extends DurableObject<Env> {
     return { ok: true, rev }
   }
 
+  /** 削除する。開いている人の接続は「削除済み」として閉じる */
+  async remove(keyHash: string): Promise<{ ok: true } | { ok: false; status: 403 | 404; error: string }> {
+    const bad = await this.check(keyHash)
+    if (bad) return bad
+    await this.ctx.storage.deleteAll()
+    for (const ws of this.ctx.getWebSockets()) {
+      try {
+        ws.close(4404, 'deleted')
+      } catch {
+        /* すでに閉じている */
+      }
+    }
+    return { ok: true }
+  }
+
   /** WebSocket の接続を受ける（休止できる方式で、接続が多くても費用がかからない） */
   async fetch(): Promise<Response> {
+    const snap = await this.read()
+    if (!snap) return new Response('Not found', { status: 404 })
     const pair = new WebSocketPair()
     this.ctx.acceptWebSocket(pair[1])
-    const snap = await this.read()
-    if (snap) pair[1].send(JSON.stringify({ type: 'update', ...snap }))
+    pair[1].send(JSON.stringify({ type: 'update', ...snap }))
     return new Response(null, { status: 101, webSocket: pair[0] })
   }
 

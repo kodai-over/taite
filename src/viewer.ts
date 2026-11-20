@@ -30,7 +30,7 @@ export function renderViewer(root: HTMLElement, ev: EventData, opts: ViewerOptio
   // 表示中の画面（狭い画面用）。タイムテーブルが起点で、名前をタップするとタイマーへ
   // リアルタイム更新で描き直した時も、今見ている画面を保つ（履歴の状態を優先）
   const hs = (history.state as { taite?: string } | null)?.taite
-  let view: 'table' | 'timer' = hs === 'table' ? 'table' : hs === 'timer' ? 'timer' : me ? 'timer' : 'table'
+  let view: 'table' | 'timer' = hs === 'table' ? 'table' : hs === 'timer' ? 'timer' : 'table'
 
   // 確認用（mock.html）: URLのパラメータで表示状態を固定する。保存はしない。
   //   ?me=none（未選択） / DJ名、?view=table、?ack=1（超過の点滅停止済み）

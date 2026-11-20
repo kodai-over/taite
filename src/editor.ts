@@ -41,7 +41,7 @@ export function renderEditor(root: HTMLElement, ctx: { id: string; key: string; 
   root.innerHTML = `
   <div class="editor">
     <header class="e-head">
-      <a class="ibtn" href="#/" aria-label="All Timetables" title="All Timetables">${icon.home}</a>
+      <a class="ibtn" href="#/dj/${id}" aria-label="Back to Timetable" title="Timetable">${icon.back}</a>
       <h1 class="brand">TAITE</h1>
       <span id="save" class="save" role="status"></span>
     </header>

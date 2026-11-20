@@ -364,10 +364,12 @@ body[data-level='over'] .display { cursor: pointer; }
 
 /* トップの一覧（タイムテーブルの行と同じ形） */
 .h-list li { display: flex; align-items: center; border-bottom: 1px solid var(--line); }
-.h-row { flex: 1; min-width: 0; display: grid; grid-template-columns: 9em minmax(0, 1fr); align-items: center; gap: 12px; min-height: 56px; padding: 8px 6px; }
+.h-row { flex: 1; min-width: 0; display: grid; gap: 2px; min-height: 64px; padding: 10px 6px; align-content: center; }
 .h-row:active { background: var(--raised); }
 .h-empty { margin: 4px 6px 14px; color: var(--dim); }
-.home .go { margin: 14px 0 8px; }
+.home .e-head { align-items: center; justify-content: space-between; }
+.home .add { background: var(--ink); color: #111; }
+.home .add:active { background: var(--dim); }
 
 /* 共有: 左にラベル、真ん中に説明、右にコピー/共有 */
 .link-cell { grid-template-columns: 7.5em minmax(0, 1fr) auto; }

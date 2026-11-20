@@ -2,7 +2,7 @@ import QRCode from 'qrcode'
 import { cache, createEvent, deleteEvent, EditKeyError, forget, mine, saveEvent } from './api'
 import { fromMin, resolve, toMin, tzOffsetFor, type EventData, type Slot } from './data'
 import { icon } from './icons'
-import { pickDate, pickTime } from './picker'
+import { ask, pickDate, pickTime } from './picker'
 import { esc, fmtHM, todayISO } from './util'
 
 /** 新しいタイムテーブルの初期値 */
@@ -94,6 +94,7 @@ export function renderEditor(root: HTMLElement, ctx: { id?: string; key?: string
       </div>
     </div>
 
+    <h2 class="grp-h manage-h">Manage</h2>
     <div class="grp edit-link">
       <div class="cell link-cell">
         <span class="cell-l">Edit Link</span>
@@ -367,7 +368,7 @@ export function renderEditor(root: HTMLElement, ctx: { id?: string; key?: string
       try {
         await navigator.clipboard.writeText(text)
       } catch {
-        prompt('Copy this link', text)
+        void ask({ title: 'Copy This Link', field: text, ok: 'Done', cancel: false })
       }
       c.innerHTML = icon.check
       c.classList.add('done')
@@ -407,12 +408,18 @@ export function renderEditor(root: HTMLElement, ctx: { id?: string; key?: string
       } catch {
         btn.disabled = false
         btn.textContent = 'Create Timetable'
-        alert("Can't create a timetable offline. Connect to the internet and try again.")
+        void ask({ title: "Can't Create Offline", text: 'Connect to the internet and try again.', ok: 'OK', cancel: false })
       }
     })
 
   if (!draft) $('delete').addEventListener('click', async () => {
-    if (!confirm(`Delete "${ev.t || 'Untitled'}"?\nDJ and public links will stop working. This can't be undone.`)) return
+    const yes = await ask({
+      title: `Delete "${ev.t || 'Untitled'}"?`,
+      text: "DJ and public links will stop working. This can't be undone.",
+      ok: 'Delete',
+      danger: true,
+    })
+    if (!yes) return
     const btn = $<HTMLButtonElement>('delete')
     btn.disabled = true
     disposed = true // 保存を止める
@@ -424,7 +431,12 @@ export function renderEditor(root: HTMLElement, ctx: { id?: string; key?: string
     } catch (err) {
       disposed = false
       btn.disabled = false
-      alert(err instanceof EditKeyError ? err.message : "Can't delete offline. Connect to the internet and try again.")
+      void ask({
+        title: err instanceof EditKeyError ? 'Edit Link Not Valid' : "Can't Delete Offline",
+        text: err instanceof EditKeyError ? 'This edit link no longer works for this timetable.' : 'Connect to the internet and try again.',
+        ok: 'OK',
+        cancel: false,
+      })
     }
   })
 

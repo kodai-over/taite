@@ -167,3 +167,32 @@ export function pickDate(value: string): Promise<string | null> {
     })
   })
 }
+
+/**
+ * 確認・お知らせのパネル（ブラウザ標準の confirm / alert は、埋め込み画面などで表示されず
+ * すぐ「いいえ」になることがあるため使わない）。
+ * 確認: OK で true、キャンセル・外側タップ・Esc で false。お知らせ（cancel: false）は閉じると false。
+ */
+export function ask(o: { title: string; text?: string; ok: string; danger?: boolean; cancel?: boolean; field?: string }): Promise<boolean> {
+  return new Promise((resolve) => {
+    const { root, close } = openSheet(
+      o.title,
+      `<header class="sheet-h"><span class="sheet-t">${esc(o.title)}</span></header>
+       ${o.text ? `<p class="ask-text">${esc(o.text)}</p>` : ''}
+       ${o.field ? `<input class="ask-field" readonly value="${esc(o.field)}" aria-label="${esc(o.title)}">` : ''}
+       <div class="ask-btns">
+         ${o.cancel === false ? '' : '<button type="button" class="ask-cancel">Cancel</button>'}
+         <button type="button" class="ask-ok${o.danger ? ' danger-fill' : ''}">${esc(o.ok)}</button>
+       </div>`,
+    )
+    const done = (v: boolean) => {
+      close()
+      resolve(v)
+    }
+    root.addEventListener('cancel', () => done(false))
+    root.querySelector('.ask-ok')!.addEventListener('click', () => done(true))
+    root.querySelector('.ask-cancel')?.addEventListener('click', () => done(false))
+    const f = root.querySelector<HTMLInputElement>('.ask-field')
+    if (f) setTimeout(() => (f.focus(), f.select()), 250)
+  })
+}

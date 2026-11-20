@@ -15,7 +15,7 @@ import { renderViewer } from './viewer'
 /*
   画面の切り替え（URLの # 以降）
     #/                    トップ（自分が作ったタイムテーブル・出演予定）
-    #/new                 新規作成 → #/edit へ
+    #/new                 新規作成（入力して Create で登録 → #/edit へ）
     #/edit/<id>/<key>     作成者の編集画面（鍵を持つ人だけ）
     #/dj/<id>             DJ用: タイムテーブル + 自分のタイマー（リアルタイム）
     #/t/<id>              一般用: タイムテーブルのみ（リアルタイム）
@@ -86,7 +86,8 @@ function route() {
 
   const [page, id, key] = parts
   if (page === 'new') {
-    void create(takeOldDraft() ?? newEventData())
+    // 入力してから Create で登録する（ここではまだサーバーに保存しない）
+    dispose = renderEditor(app, { data: takeOldDraft() ?? newEventData() })
     return
   }
 

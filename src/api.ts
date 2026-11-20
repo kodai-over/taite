@@ -103,7 +103,9 @@ export async function fetchEvent(id: string): Promise<Snapshot | null> {
   if (!res.ok) throw new Error(`Load failed (${res.status})`)
   const v = await res.json()
   const data = normalize(v?.data)
-  return data ? { data, rev: Number(v.rev) || 0 } : null
+  // 404 以外で読めない形が返ってきた時は「削除」ではなくエラーにする（端末の保存を消さない）
+  if (!data) throw new Error('Unexpected response')
+  return { data, rev: Number(v.rev) || 0 }
 }
 
 export class EditKeyError extends Error {}
@@ -143,6 +145,8 @@ export function subscribe(
   let retry = 0
   let pingTimer = 0
   let retryTimer = 0
+  let pongTimer = 0
+  let lastRev = -1
   const url = `${location.origin.replace(/^http/, 'ws')}${API}/${encodeURIComponent(id)}/ws`
 
   const connect = () => {
@@ -151,44 +155,82 @@ export function subscribe(
     ws.onopen = () => {
       retry = 0
       clearInterval(pingTimer)
-      pingTimer = window.setInterval(() => ws?.readyState === WebSocket.OPEN && ws.send('ping'), 25_000)
+      pingTimer = window.setInterval(ping, 25_000)
     }
     ws.onmessage = (e) => {
+      clearTimeout(pongTimer)
       if (e.data === 'pong') return
       try {
         const m = JSON.parse(e.data)
         const data = normalize(m?.data)
         if (m?.type === 'update' && data) {
           onStatus('live')
-          onSnap({ data, rev: Number(m.rev) || 0 })
+          lastRev = Number(m.rev) || 0
+          onSnap({ data, rev: lastRev })
         }
       } catch {
         /* 壊れたメッセージは無視 */
       }
     }
     ws.onclose = (e) => {
-      clearInterval(pingTimer)
-      if (closed) return
-      if (e.code === 4404) {
+      if (e.code === 4404 && !closed) {
         // 削除された
         closed = true
+        clearInterval(pingTimer)
         onGone?.()
         return
       }
-      onStatus('offline')
-      retryTimer = window.setTimeout(connect, Math.min(30_000, 1000 * 2 ** retry++))
+      dropped()
     }
     ws.onerror = () => ws?.close()
   }
 
-  // 画面に戻ってきた時・電波が戻った時はすぐつなぎ直す
+  /** 接続が切れた: オフラインを知らせて、少しずつ間隔をあけてつなぎ直す */
+  function dropped() {
+    clearInterval(pingTimer)
+    clearTimeout(pongTimer)
+    if (closed) return
+    onStatus('offline')
+    clearTimeout(retryTimer)
+    retryTimer = window.setTimeout(connect, Math.min(30_000, 1000 * 2 ** retry++))
+  }
+
+  // 生存確認: ping から数秒以内に応答がなければ、切れているとみなしてつなぎ直す
+  // （スリープからの復帰や不安定な電波では、切れていても OPEN のままのことがある）
+  function ping() {
+    if (ws?.readyState !== WebSocket.OPEN) return
+    ws.send('ping')
+    clearTimeout(pongTimer)
+    pongTimer = window.setTimeout(() => {
+      // 応答のない接続は閉じ終わるのを待たずに捨てる（閉じる処理自体が長くかかることがある）
+      const dead = ws
+      if (dead) {
+        dead.onclose = dead.onmessage = dead.onerror = null
+        dead.close()
+      }
+      ws = null
+      dropped()
+    }, 5000)
+  }
+
+  // 画面に戻ってきた時・電波が戻った時はすぐつなぎ直す。つながったままでも生存確認し、最新の内容を取り直す
   const kick = () => {
     if (closed || document.visibilityState !== 'visible') return
-    if (!ws || ws.readyState === WebSocket.CLOSED) {
+    if (!ws || ws.readyState === WebSocket.CLOSED || ws.readyState === WebSocket.CLOSING) {
       clearTimeout(retryTimer)
       retry = 0
       connect()
+      return
     }
+    ping()
+    fetchEvent(id)
+      .then((snap) => {
+        if (!closed && snap && snap.rev !== lastRev) {
+          lastRev = snap.rev
+          onSnap(snap)
+        }
+      })
+      .catch(() => {})
   }
   document.addEventListener('visibilitychange', kick)
   window.addEventListener('online', kick)
@@ -197,6 +239,7 @@ export function subscribe(
   return () => {
     closed = true
     clearInterval(pingTimer)
+    clearTimeout(pongTimer)
     clearTimeout(retryTimer)
     document.removeEventListener('visibilitychange', kick)
     window.removeEventListener('online', kick)

@@ -15,7 +15,6 @@ const levelOf = (remain: number): Level =>
 export interface ViewerOptions {
   /** 端末に「自分のDJ」などを保存する時のキー（イベントごとに変える） */
   storeKey: string
-  /** 編集画面へのリンク（編集用の鍵を持っている時だけ） */
   /** 一覧（ホーム）へのリンク */
   homeHref?: string
 }

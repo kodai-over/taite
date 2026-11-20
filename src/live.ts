@@ -65,7 +65,12 @@ export function live(
       }
     })
     .catch(() => {
-      if (!cached) message("Can't load the timetable", 'Check your connection and try again.', true)
+      if (!cached)
+        message(
+          "Can't load the timetable",
+          "This device hasn't opened it before, so the first time needs a connection. Try again where you have signal.",
+          true,
+        )
     })
 
   const unsubscribe = subscribe(

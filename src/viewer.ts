@@ -13,14 +13,14 @@ const levelOf = (remain: number): Level =>
 
 export function renderViewer(root: HTMLElement, ev: EventData, payload: string): () => void {
   const slots = resolve(ev)
-  const meKey = `djtt:me:${ev.d}:${ev.t}`
+  const meKey = `taite:me:${ev.d}:${ev.t}`
   let me: string | null = store.get(meKey)
   if (me && !slots.some((s) => s.name === me)) me = null
 
   root.innerHTML = `
   <div class="viewer">
     <header class="v-head">
-      <div class="v-title">${esc(ev.t || 'DJ Timetable')}</div>
+      <div class="v-title">${esc(ev.t || 'TAITE')}</div>
       <button id="wake" class="wake" type="button"></button>
     </header>
 
@@ -214,7 +214,7 @@ export function renderViewer(root: HTMLElement, ev: EventData, payload: string):
   // 秒の切り替わりに合わせて更新
   const timerId = setInterval(tick, 250)
   const disposeWake = initWakeLock($<HTMLButtonElement>('wake'))
-  document.title = `${ev.t || 'DJ Timetable'} – タイマー`
+  document.title = `${ev.t || 'TAITE'} – タイマー`
 
   return () => {
     clearInterval(timerId)

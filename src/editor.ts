@@ -2,7 +2,7 @@ import QRCode from 'qrcode'
 import { encode, fromMin, resolve, toMin, type EventData, type Slot } from './data'
 import { esc, fmtHM, store, todayISO } from './util'
 
-const DRAFT_KEY = 'djtt:draft'
+const DRAFT_KEY = 'taite:draft'
 
 const defaultEvent = (): EventData => ({
   v: 1,
@@ -33,8 +33,8 @@ export function renderEditor(root: HTMLElement, init?: EventData): () => void {
   root.innerHTML = `
   <div class="editor">
     <header class="e-head">
-      <h1>DJ Timetable</h1>
-      <p>タイムテーブルを作ってリンクで共有。DJは自分のスマホで残り時間を確認できます。</p>
+      <h1>TAITE</h1>
+      <p>DJ Set Timer — タイテを作ってリンクを共有すると、DJは自分の出番までの時間とセット残り時間をスマホで確認できます。</p>
     </header>
 
     <label class="field"><span>イベント名</span>
@@ -197,13 +197,13 @@ export function renderEditor(root: HTMLElement, init?: EventData): () => void {
     nshare.hidden = false
     nshare.addEventListener('click', () => {
       navigator
-        .share({ title: ev.t || 'DJ Timetable', text: `${ev.t || 'DJ Timetable'} タイムテーブル`, url: urlInput.value })
+        .share({ title: ev.t || 'TAITE', text: `${ev.t || 'TAITE'} タイムテーブル`, url: urlInput.value })
         .catch(() => {})
     })
   }
 
   renderSlots()
   update()
-  document.title = 'DJ Timetable – 作成'
+  document.title = 'TAITE – タイテ作成'
   return () => {}
 }

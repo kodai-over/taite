@@ -1,4 +1,6 @@
-# DJ Timetable
+# TAITE（タイテ）
+
+DJ Set Timer & Timetable — 自分の出番まで・セット残り時間をスマホで把握する。
 
 DJイベントのタイムテーブルをリンクで共有し、各自のスマホで現在時刻・セットの残り時間を表示するPWA。サーバー・DB不要（タイムテーブルはURLの `#` 以降に圧縮して埋め込み）。
 
@@ -21,3 +23,5 @@ npm run build    # dist/ に出力
 
 ## デプロイ（無料）
 Cloudflare Pages / GitHub Pages に `dist/` を配置。ビルドコマンド `npm run build`、出力 `dist`。
+
+公開URL: https://kodai-over.github.io/taite/ （`main` へのpushで GitHub Actions が自動デプロイ）

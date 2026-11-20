@@ -1,6 +1,6 @@
 {
-  "name": "DJ Timetable",
-  "short_name": "DJ Timetable",
+  "name": "TAITE – DJ Set Timer",
+  "short_name": "TAITE",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

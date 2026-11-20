@@ -1,5 +1,5 @@
 // オフライン対応: 一度開けば会場で電波が弱くても動く
-const CACHE = 'djtt-v1'
+const CACHE = 'taite-v1'
 const SHELL = ['./', './index.html', './manifest.webmanifest', './icon.svg']
 
 self.addEventListener('install', (e) => {

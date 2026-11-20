@@ -140,6 +140,7 @@ export function renderEditor(root: HTMLElement, ctx: { id?: string; key?: string
   let saveTimer = 0
   let saving = false
   let dirty = false
+  let blocked = false // 入力に問題があって保存しない状態
   let disposed = false
   // 保存の状態は、問題がある時（電波なし・編集リンクが無効）だけ表示する
   const showSave = (text: string, kind: '' | 'warn' = '') => {
@@ -147,7 +148,7 @@ export function renderEditor(root: HTMLElement, ctx: { id?: string; key?: string
     saveEl.dataset.kind = kind
   }
   const flush = async () => {
-    if (saving || !dirty || disposed) return
+    if (saving || !dirty || disposed || blocked) return
     saving = true
     dirty = false
     showSave('Saving…')
@@ -175,11 +176,6 @@ export function renderEditor(root: HTMLElement, ctx: { id?: string; key?: string
 
   const update = () => {
     ev.z = tzOffsetFor(ev.d)
-    if (!draft) {
-      dirty = true
-      schedule()
-      mine.put({ id, key, t: ev.t, d: ev.d })
-    }
 
     // 入力の確認
     const problems: string[] = []
@@ -188,6 +184,21 @@ export function renderEditor(root: HTMLElement, ctx: { id?: string; key?: string
     if (!hasDate) problems.push('Choose the event date.')
     else if (resolved.length !== ev.s.length) problems.push('Some sets are missing a start or end time.')
     if (ev.s.some(([, , n]) => !n.trim())) problems.push('Some sets are missing a DJ name.')
+    // 日付・時刻・DJ名が欠けている間は保存（＝全員への配信）をしない。重なりは B2B などもあるので保存する
+    blocked = problems.length > 0
+    if (draft) {
+      $<HTMLButtonElement>('create').disabled = blocked
+    } else {
+      dirty = true
+      if (blocked) {
+        clearTimeout(saveTimer)
+        showSave('Not saved. Fill in the sets.', 'warn')
+      } else {
+        if (saveEl.dataset.kind === 'warn' && saveEl.textContent?.startsWith('Not saved')) showSave('')
+        schedule()
+        mine.put({ id, key, t: ev.t, d: ev.d })
+      }
+    }
     for (let k = 1; k < resolved.length; k++) {
       const a = resolved[k - 1]
       const b = resolved[k]
@@ -452,7 +463,7 @@ export function renderEditor(root: HTMLElement, ctx: { id?: string; key?: string
   update()
   dirty = false // 開いただけでは保存しない
   clearTimeout(saveTimer)
-  showSave(draft ? '' : 'Saved')
+  if (!blocked) showSave('')
   showTab()
   document.title = draft ? 'New Timetable – TAITE' : `${ev.t || 'TAITE'} – Edit`
   return () => {

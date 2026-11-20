@@ -20,13 +20,33 @@ export interface ViewerOptions {
   homeHref?: string
 }
 
+/**
+ * リアルタイム更新で描き直しても保ちたい、その画面の状態（タイムテーブルごと）。
+ * スリープ防止のオン/オフ、直前の警告レベル（同じレベルで振動し直さない）、一覧のスクロール位置。
+ */
+const kept = new Map<string, { wake?: boolean; level?: Level; scroll?: number }>()
+
 export function renderViewer(root: HTMLElement, ev: EventData, opts: ViewerOptions): () => void {
   const slots = resolve(ev)
   const title = esc(ev.t || 'TAITE')
   const meKey = `taite:me:${opts.storeKey}`
+  const meIdxKey = `${meKey}:i`
+  const keep = kept.get(opts.storeKey) ?? {}
+  kept.set(opts.storeKey, keep)
   const saved = store.get(meKey)
   // null = まだ選んでいない（タイムテーブルから選んでもらう）、それ以外 = 自分のDJ名
-  let me: string | null = slots.some((s) => s.name === saved) ? saved : null
+  // 主催者がDJ名を直しても見失わないよう、名前で見つからなければ同じ番号の枠を自分とみなす
+  let me: string | null = null
+  if (saved !== null) {
+    const byName = slots.findIndex((s) => s.name === saved)
+    const savedIdx = Number(store.get(meIdxKey))
+    const idx = byName >= 0 ? byName : Number.isInteger(savedIdx) && slots[savedIdx] ? savedIdx : -1
+    if (idx >= 0) {
+      me = slots[idx].name
+      if (me !== saved) store.set(meKey, me)
+      store.set(meIdxKey, String(idx))
+    }
+  }
   // 表示中の画面（狭い画面用）。タイムテーブルが起点で、名前をタップするとタイマーへ
   // リアルタイム更新で描き直した時も、今見ている画面を保つ（履歴の状態を優先）
   const hs = (history.state as { taite?: string } | null)?.taite
@@ -123,6 +143,7 @@ export function renderViewer(root: HTMLElement, ev: EventData, opts: ViewerOptio
   const openTimer = (name: string) => {
     me = name
     store.set(meKey, name)
+    store.set(meIdxKey, String(slots.findIndex((s) => s.name === name)))
     if (view !== 'timer') {
       history.pushState({ taite: 'timer' }, '')
       view = 'timer'
@@ -152,7 +173,7 @@ export function renderViewer(root: HTMLElement, ev: EventData, opts: ViewerOptio
   }
   window.addEventListener('popstate', onPop)
 
-  let lastLevel: Level = ''
+  let lastLevel: Level = keep.level ?? ''
   /** 超過の点滅をタップで止めた枠（同じ枠の間は点滅させない） */
   const ackKey = `${meKey}:ack`
   // 枠は番号ではなく内容で識別する（タイムテーブルを直して並びが変わっても別の枠と取り違えないように）
@@ -189,6 +210,7 @@ export function renderViewer(root: HTMLElement, ev: EventData, opts: ViewerOptio
       navigator.vibrate?.([200, 100, 200])
     }
     lastLevel = o.level
+    keep.level = o.level
   }
 
   const nextAfter = (s: ResolvedSlot): ResolvedSlot | undefined => slots.find((x) => x.start >= s.end && x !== s)
@@ -286,10 +308,12 @@ export function renderViewer(root: HTMLElement, ev: EventData, opts: ViewerOptio
   tick()
   // 秒の切り替わりに合わせて更新
   const timerId = setInterval(tick, 250)
-  const disposeWake = initWakeLock($<HTMLButtonElement>('wake'))
+  const disposeWake = initWakeLock($<HTMLButtonElement>('wake'), keep.wake ?? true, (on) => (keep.wake = on))
+  if (keep.scroll) list.scrollTop = keep.scroll
   document.title = `${ev.t || 'TAITE'} – Timer`
 
   return () => {
+    keep.scroll = list.scrollTop
     clearInterval(timerId)
     disposeWake()
     window.removeEventListener('popstate', onPop)

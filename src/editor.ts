@@ -3,7 +3,7 @@ import { cache, createEvent, deleteEvent, EditKeyError, forget, mine, saveEvent 
 import { fromMin, resolve, toMin, tzOffsetFor, type EventData, type Slot } from './data'
 import { icon } from './icons'
 import { ask, pickDate, pickTime } from './picker'
-import { esc, fmtHM, todayISO } from './util'
+import { esc, fmtHM, store, todayISO } from './util'
 
 /** 新しいタイムテーブルの初期値 */
 export const newEventData = (): EventData => ({
@@ -164,7 +164,11 @@ export function renderEditor(root: HTMLElement, ctx: { id?: string; key?: string
       }
       dirty = true
       showSave('Offline. Will retry.', 'warn')
+      // 電波がない間は4秒おきに再試行（下の schedule() で0.5秒に縮めない）
+      saving = false
+      clearTimeout(saveTimer)
       saveTimer = window.setTimeout(flush, 4000)
+      return
     }
     saving = false
     if (dirty) schedule()
@@ -418,6 +422,7 @@ export function renderEditor(root: HTMLElement, ctx: { id?: string; key?: string
         const res = await createEvent(ev)
         mine.put({ id: res.id, key: res.key, t: ev.t, d: ev.d })
         cache.put(res.id, { data: ev, rev: 1 })
+        store.set('taite:draft', null) // 以前の版の下書きは、登録できてから消す
         location.replace(`#/edit/${res.id}/${res.key}`)
       } catch {
         btn.disabled = false

@@ -45,10 +45,10 @@ async function create(data: EventData) {
 }
 
 /** 以前の端末に残っている下書き（URL埋め込み形式の時代のもの）があれば、最初の新規作成に使う */
-function takeOldDraft(): EventData | null {
+// 下書き自体は、Create で登録できた時に消す（登録前に画面を離れても失わない）
+function oldDraft(): EventData | null {
   const raw = store.get('taite:draft')
   if (!raw) return null
-  store.set('taite:draft', null)
   try {
     return normalize(JSON.parse(raw))
   } catch {
@@ -87,7 +87,7 @@ function route() {
   const [page, id, key] = parts
   if (page === 'new') {
     // 入力してから Create で登録する（ここではまだサーバーに保存しない）
-    dispose = renderEditor(app, { data: takeOldDraft() ?? newEventData() })
+    dispose = renderEditor(app, { data: oldDraft() ?? newEventData() })
     return
   }
 

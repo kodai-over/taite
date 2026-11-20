@@ -23,6 +23,14 @@ function loadDraft(): EventData | null {
   }
 }
 
+/** セットの長さ（例: 60 Min / 1 H 30 Min ではなく分で統一） */
+function durText(s: string, e: string): string {
+  const a = toMin(s)
+  const b = toMin(e)
+  if (a === null || b === null) return ''
+  return `${(b - a + 1440) % 1440 || 1440} Min`
+}
+
 export const shareUrl = (ev: EventData): string =>
   `${location.origin}${location.pathname}#${encode(ev)}`
 
@@ -39,29 +47,36 @@ export function renderEditor(root: HTMLElement, init?: EventData): () => void {
   <div class="editor">
     <header class="e-head">
       <h1 class="brand">TAITE</h1>
-      <p class="tagline">DJ set timer</p>
+      <p class="tagline">DJ Set Timer</p>
     </header>
 
-    <div class="fields">
-      <input id="title" class="fld" maxlength="60" placeholder="Event name" aria-label="Event name" autocomplete="off">
-      <label class="fld fld-date" title="Date of the first set">${icon.calendar}
-        <input id="date" type="date" aria-label="Date of the first set">
+    <h2 class="grp-h">Event</h2>
+    <div class="grp">
+      <label class="cell">
+        <span class="cell-l">Name</span>
+        <input id="title" class="cell-in" maxlength="60" placeholder="Event Name" autocomplete="off">
+      </label>
+      <label class="cell">
+        <span class="cell-l">Date</span>
+        <input id="date" class="pill" type="date">
       </label>
     </div>
 
-    <ol id="slots" class="slots"></ol>
-    <button id="add" class="add" type="button">${icon.plus}<span>Add set</span></button>
+    <h2 class="grp-h">Sets</h2>
+    <ol id="slots" class="grp slots"></ol>
+    <button id="add" class="add" type="button">${icon.plus}<span>Add Set</span></button>
     <ul id="msg" class="msg"></ul>
 
-    <section class="share" aria-label="Share">
+    <h2 class="grp-h">Share</h2>
+    <section class="grp share" aria-label="Share">
       <img id="qr" class="qr" alt="QR code for the share link" width="240" height="240" hidden>
       <div class="share-row">
-        <input id="url" class="fld" readonly aria-label="Share link">
-        <button id="copy" class="ibtn" type="button" aria-label="Copy link" title="Copy link">${icon.copy}</button>
+        <input id="url" class="url" readonly aria-label="Share link">
+        <button id="copy" class="ibtn" type="button" aria-label="Copy Link" title="Copy Link">${icon.copy}</button>
         <button id="nshare" class="ibtn" type="button" aria-label="Share" title="Share" hidden>${icon.share}</button>
       </div>
-      <a id="open" class="go" aria-label="Open timer">${icon.play}<span>Open timer</span></a>
     </section>
+    <a id="open" class="go" aria-label="Open Timer">${icon.play}<span>Open Timer</span></a>
   </div>`
 
   const $ = <T extends HTMLElement>(id: string) => root.querySelector<T>('#' + id)!
@@ -83,16 +98,19 @@ export function renderEditor(root: HTMLElement, init?: EventData): () => void {
       .map(
         ([s, e, n], i) => `
       <li class="slot" data-i="${i}">
-        <input class="n" value="${esc(n)}" placeholder="DJ name" maxlength="40" autocomplete="off" aria-label="DJ name">
-        <div class="times">
-          <input type="time" class="s" value="${esc(s)}" aria-label="Start">
-          <span class="dash" aria-hidden="true"></span>
-          <input type="time" class="e" value="${esc(e)}" aria-label="End">
+        <div class="slot-top">
+          <input class="n" value="${esc(n)}" placeholder="DJ Name" maxlength="40" autocomplete="off" aria-label="DJ Name">
+          <div class="ops">
+            <button type="button" data-op="up" aria-label="Move Up" ${i === 0 ? 'disabled' : ''}>${icon.up}</button>
+            <button type="button" data-op="down" aria-label="Move Down" ${i === ev.s.length - 1 ? 'disabled' : ''}>${icon.down}</button>
+            <button type="button" data-op="del" aria-label="Delete" ${ev.s.length === 1 ? 'disabled' : ''}>${icon.remove}</button>
+          </div>
         </div>
-        <div class="ops">
-          <button type="button" data-op="up" aria-label="Move up" ${i === 0 ? 'disabled' : ''}>${icon.up}</button>
-          <button type="button" data-op="down" aria-label="Move down" ${i === ev.s.length - 1 ? 'disabled' : ''}>${icon.down}</button>
-          <button type="button" data-op="del" aria-label="Delete" ${ev.s.length === 1 ? 'disabled' : ''}>${icon.remove}</button>
+        <div class="slot-time">
+          <input type="time" class="pill s" value="${esc(s)}" step="300" aria-label="Start">
+          <span class="to" aria-hidden="true">–</span>
+          <input type="time" class="pill e" value="${esc(e)}" step="300" aria-label="End">
+          <span class="dur">${durText(s, e)}</span>
         </div>
       </li>`,
       )
@@ -108,18 +126,18 @@ export function renderEditor(root: HTMLElement, init?: EventData): () => void {
     const problems: string[] = []
     const hasDate = /^\d{4}-\d{2}-\d{2}$/.test(ev.d)
     const resolved = resolve(ev)
-    if (!hasDate) problems.push('Enter the event date')
-    else if (resolved.length !== ev.s.length) problems.push('Some sets are missing a start or end time')
-    if (ev.s.some(([, , n]) => !n.trim())) problems.push('Some sets are missing a DJ name')
+    if (!hasDate) problems.push('Enter the event date.')
+    else if (resolved.length !== ev.s.length) problems.push('Some sets are missing a start or end time.')
+    if (ev.s.some(([, , n]) => !n.trim())) problems.push('Some sets are missing a DJ name.')
     for (let k = 1; k < resolved.length; k++) {
       const a = resolved[k - 1]
       const b = resolved[k]
-      if (b.start < a.end) problems.push(`${a.name} and ${b.name} overlap`)
+      if (b.start < a.end) problems.push(`${a.name} and ${b.name} overlap.`)
     }
     if (resolved.length) {
       const first = resolved[0]
       const last = resolved[resolved.length - 1]
-      problems.unshift(`Total: ${fmtHM(first.start)} – ${fmtHM(last.end)} (${resolved.length} ${resolved.length === 1 ? 'set' : 'sets'})`)
+      problems.unshift(`${resolved.length} ${resolved.length === 1 ? 'Set' : 'Sets'}, ${fmtHM(first.start)}–${fmtHM(last.end)}`)
     }
     msg.innerHTML = problems
       .map((p, k) => `<li class="${k === 0 && resolved.length ? 'ok' : 'warn'}">${esc(p)}</li>`)
@@ -133,7 +151,7 @@ export function renderEditor(root: HTMLElement, init?: EventData): () => void {
     const token = ++qrToken
     if (!hasDate) {
       urlInput.value = ''
-      urlInput.placeholder = 'Enter the date to create a share link'
+      urlInput.placeholder = 'Add a date to get a link'
       open.removeAttribute('href')
       qr.hidden = true
       return
@@ -168,8 +186,32 @@ export function renderEditor(root: HTMLElement, init?: EventData): () => void {
     if (!li) return
     const i = Number(li.dataset.i)
     const k = t.classList.contains('s') ? 0 : t.classList.contains('e') ? 1 : 2
+    if (k === 0) {
+      // 開始を動かしたら、セットの長さを保ったまま終了も動かす（カレンダーアプリと同じ）
+      const oldS = toMin(ev.s[i][0])
+      const oldE = toMin(ev.s[i][1])
+      const newS = toMin(t.value)
+      if (oldS !== null && oldE !== null && newS !== null) {
+        const len = (oldE - oldS + 1440) % 1440 || 60
+        ev.s[i][1] = fromMin(newS + len)
+        li.querySelector<HTMLInputElement>('.e')!.value = ev.s[i][1]
+      }
+    }
     ev.s[i][k] = t.value
+    li.querySelector('.dur')!.textContent = durText(ev.s[i][0], ev.s[i][1])
     update()
+  })
+
+  // 時刻・日付をタップしたら、その場でピッカーを開く（iPhone はホイール、PC は時計の一覧）
+  root.addEventListener('click', (e) => {
+    const t = e.target as HTMLInputElement
+    if (t.matches?.('input.pill')) {
+      try {
+        t.showPicker?.()
+      } catch {
+        /* 対応していないブラウザは通常の入力 */
+      }
+    }
   })
 
   list.addEventListener('click', (e) => {

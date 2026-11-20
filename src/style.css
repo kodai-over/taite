@@ -1,6 +1,6 @@
 /* ==========================================================================
-   TAITE — DJ機材のような、黒い表示窓のついた計器
-   - 本体はチャコール、表示窓は真っ黒。数字は白（状態に応じて色が変わる）
+   TAITE — DJ機材のような落ち着いた計器
+   - チャコールの地に、数字は白（状態に応じて色が変わる）
    - 色は信号のように意味だけを持つ: 待機=白 / 出番10分前=青 / プレイ中=緑 / 残り10・5・1分=黄・橙・赤
    - 書体は Barlow（標識やDJ機材に使われる DIN 系）。数字は等幅で遠くからでも読める
    - 光彩・走査線・グラデーション・角の切り落としなどの飾りは使わない
@@ -8,7 +8,6 @@
 
 :root {
   --body: #222326;      /* 本体 */
-  --window: #000;       /* 表示窓 */
   --raised: #303236;    /* ボタン・入力欄 */
   --line: #3b3d42;      /* 区切り */
   --ink: #f2f1ec;       /* 文字 */
@@ -19,7 +18,7 @@
   --w5: #ff8a2b;        /* 残り5分 */
   --w1: #ff4040;        /* 残り1分・超過 */
 
-  --sig: var(--ink);    /* 状態の色（表示窓の数字など） */
+  --sig: var(--ink);    /* 状態の色（大きな数字など） */
   --font: 'Barlow', system-ui, -apple-system, 'Hiragino Sans', 'Noto Sans JP', sans-serif;
   --r: 6px;
   --gutter: 16px;
@@ -85,14 +84,11 @@ a { text-decoration: none; }
 .who { flex: 1; min-width: 0; display: flex; flex-direction: column; line-height: 1.25; }
 .me { font-size: 14px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-/* --- 表示窓 --- */
+/* --- タイマーの表示領域（枠や背景は付けない） --- */
 .display {
   flex: 1; min-height: 0;
   display: flex; flex-direction: column;
-  padding: 16px 18px 18px;
-  background: var(--window);
-  border: 1px solid var(--line);
-  border-radius: 12px;
+  padding: 8px 2px 6px;
   container-type: inline-size;
 }
 
@@ -211,7 +207,7 @@ body[data-level='over'] .display { cursor: pointer; }
   body[data-level='w1'], body[data-level='over'] { animation: none; }
   body[data-level='w1'] { background: #3a0c0c; }
   body[data-level='over'] { background: #6a0d0d; }
-  body[data-level='over'] .display { border: 4px solid var(--w1); }
+  body[data-level='over'] .display { outline: 4px solid var(--w1); outline-offset: 6px; border-radius: 4px; }
   .meter-fill { transition: none; }
 }
 
@@ -299,7 +295,6 @@ body[data-level='over'] .display { cursor: pointer; }
 /* ごく細い画面（折りたたみの外側画面など） */
 @media (max-width: 340px) {
   :root { --gutter: 10px; }
-  .display { padding: 12px 12px 14px; }
   .readouts { gap: 10px; }
   .ro + .ro { padding-left: 10px; }
   .lineup { gap: 6px 10px; }
@@ -311,7 +306,7 @@ body[data-level='over'] .display { cursor: pointer; }
   .pane-timer { gap: 8px; }
   .display {
     display: grid; grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.4fr); grid-template-rows: auto auto minmax(0, 1fr) auto;
-    column-gap: 24px; padding: 12px 18px 14px;
+    column-gap: 24px; padding: 4px 2px;
   }
   .readouts { grid-column: 1; grid-template-columns: 1fr; gap: 8px; align-self: end; }
   .ro + .ro { padding-left: 0; border-left: 0; }

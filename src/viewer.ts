@@ -62,12 +62,11 @@ export function renderViewer(root: HTMLElement, ev: EventData, payload: string):
   <div id="view-timer" class="view-timer" hidden>
     <header class="t-top">
       <div class="who">
+        <span class="v-title">${title}</span>
         <span id="who-name" class="who-name"></span>
       </div>
       <button type="button" id="change" class="btn small ghost">Change</button>
     </header>
-
-    <div class="t-meta"><span class="v-title">${title}</span></div>
 
     <section id="stage" class="stage" aria-live="polite">
       <div class="now-set">
@@ -239,12 +238,8 @@ export function renderViewer(root: HTMLElement, ev: EventData, payload: string):
     for (const s of slots) if (s.start <= t && t < s.end) cur = s
     const upcoming = slots.find((s) => s.start > t)
 
-    // NOW PLAYING 行: 今プレイ中のDJと、その終了時刻（= 次の人が交代する時刻）
-    np.textContent = cur
-      ? `${cur.name}${isDj() && cur.name === me ? ' (you)' : ''} · until ${fmtHM(cur.end)}`
-      : upcoming
-        ? `— · ${upcoming === slots[0] ? 'first' : 'next'} set at ${fmtHM(upcoming.start)}`
-        : '—'
+    // NOW PLAYING 行: 今プレイ中のDJ名だけ
+    np.textContent = cur ? cur.name : '—'
 
     items.forEach((li, k) => {
       const s = slots[k]
@@ -278,7 +273,7 @@ export function renderViewer(root: HTMLElement, ev: EventData, payload: string):
         const wait = target.start - t
         show({
           label: wait <= SOON_MS ? "YOU'RE ON SOON" : 'YOUR SET STARTS IN',
-          sub: `${Math.round((target.end - target.start) / MIN)} min set`,
+          sub: '',
           timer: fmtDur(wait),
           progress: 0,
           set: rangeOf(target),

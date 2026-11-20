@@ -142,13 +142,10 @@ body.lock { overflow: hidden; }
 }
 
 .t-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-.who { min-width: 0; display: flex; flex-direction: column; }
-.who-name {
-  font-size: clamp(22px, 7vw, 34px); font-weight: 800; line-height: 1.15;
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-}
+.who { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.who .v-title { font-size: 13px; color: var(--muted); }
+.who-name { font-size: 13px; font-weight: 700; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-.t-meta { display: flex; color: var(--muted); font-size: 13px; min-width: 0; }
 .v-title { font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 .stage {
@@ -306,8 +303,7 @@ body[data-level='overAck'] .bar-fill { background: var(--w1); }
 /* 横向き（ブースに立てかける用）: 高さが足りないので補助的な表示を省き、NOW / SET を数字の左に縦に並べる */
 @media (orientation: landscape) and (max-height: 520px) {
   .view-timer { max-width: none; gap: 6px; }
-  .who-name { font-size: 22px; }
-  .t-meta, .next { display: none; }
+  .next { display: none; }
   .stage { display: grid; grid-template-columns: auto 1fr; grid-template-rows: auto 1fr auto auto; column-gap: 24px; padding: 10px 16px; }
   .now-set { grid-row: 1 / -1; grid-template-columns: 1fr; margin: 0; padding: 0 20px 0 0; border-bottom: 0; border-right: 1px solid var(--line); align-content: center; row-gap: 14px; }
   .ns-cell + .ns-cell { border-left: 0; }

@@ -78,18 +78,20 @@ export function renderViewer(root: HTMLElement, ev: EventData, payload: string):
           <span id="set-label" class="ns-label">SET</span>
           <span id="set" class="ns-value">--:-- – --:--</span>
         </div>
-        <div id="np-row" class="np-row">
-          <span class="ns-label">NOW PLAYING</span>
-          <span id="np" class="np-value">—</span>
-        </div>
+        <dl class="lineup">
+          <dt id="np-label" class="ns-label">NOW PLAYING</dt>
+          <dd id="np" class="lu-name">—</dd>
+          <dd id="np-time" class="lu-time"></dd>
+          <dt class="ns-label">NEXT</dt>
+          <dd id="nx" class="lu-name">—</dd>
+          <dd id="nx-time" class="lu-time"></dd>
+        </dl>
       </div>
       <div id="label" class="stage-label"></div>
       <div id="timer" class="timer">--:--</div>
       <div id="sub" class="stage-sub"></div>
       <div class="bar"><div id="bar" class="bar-fill"></div></div>
     </section>
-
-    <div id="next" class="next"></div>
 
     <footer class="t-bottom">
       <button type="button" id="to-table" class="btn">Timetable</button>
@@ -128,10 +130,12 @@ export function renderViewer(root: HTMLElement, ev: EventData, payload: string):
   const bar = $('bar')
   const setLabel = $('set-label')
   const setEl = $('set')
-  const next = $('next')
   const whoName = $('who-name')
-  const npRow = $('np-row')
+  const npLabel = $('np-label')
   const np = $('np')
+  const npTime = $('np-time')
+  const nx = $('nx')
+  const nxTime = $('nx-time')
   const change = $<HTMLButtonElement>('change')
   const stage = $('stage')
   const list = $<HTMLOListElement>('list')
@@ -150,8 +154,8 @@ export function renderViewer(root: HTMLElement, ev: EventData, payload: string):
     // タイマー画面はスクロールさせず画面に固定する
     document.body.classList.toggle('lock', !viewTimer.hidden)
     whoName.textContent = isDj() ? me! : 'Full timetable'
-    // 全体表示では中央がそのまま NOW PLAYING なので、この行は出さない
-    npRow.hidden = !isDj()
+    // 全体表示では中央がそのまま NOW PLAYING なので、NEXT だけ出す
+    for (const el of [npLabel, np, npTime]) el.hidden = !isDj()
     change.textContent = isDj() ? 'Change' : 'Pick my name'
     setLabel.textContent = isDj() ? 'YOUR SET' : 'SET'
   }
@@ -209,7 +213,6 @@ export function renderViewer(root: HTMLElement, ev: EventData, payload: string):
     progress: number
     /** 横に並べる set time（対象の枠の時間帯） */
     set: string
-    next: string
     level: Level
   }) => {
     label.textContent = o.label
@@ -218,7 +221,6 @@ export function renderViewer(root: HTMLElement, ev: EventData, payload: string):
     timer.style.setProperty('--chars', String(o.timer.length))
     bar.style.transform = `scaleX(${Math.min(1, Math.max(0, o.progress))})`
     setEl.textContent = o.set
-    next.textContent = o.next
     document.body.dataset.level = o.level
     const canVibrate = navigator.userActivation?.hasBeenActive ?? true // 未タップ時はブラウザが拒否する
     if (canVibrate && o.level !== lastLevel && ['soon', 'w5', 'w1', 'over'].includes(o.level)) {
@@ -228,7 +230,6 @@ export function renderViewer(root: HTMLElement, ev: EventData, payload: string):
   }
 
   const nextAfter = (s: ResolvedSlot): ResolvedSlot | undefined => slots.find((x) => x.start >= s.end && x !== s)
-  const nextLine = (s: ResolvedSlot | undefined) => (s ? `Next  ${fmtHM(s.start)}  ${s.name}` : '')
   const rangeOf = (s: ResolvedSlot) => `${fmtHM(s.start)} – ${fmtHM(s.end)}`
 
   const tick = () => {
@@ -240,6 +241,11 @@ export function renderViewer(root: HTMLElement, ev: EventData, payload: string):
 
     // NOW PLAYING 行: 今プレイ中のDJ名だけ
     np.textContent = cur ? cur.name : '—'
+    npTime.textContent = cur ? fmtHM(cur.end) : '' // 終了時刻
+    // NEXT 行: 今の枠の次（誰もプレイしていなければ、次に始まる枠）と開始時刻
+    const nextSlot = cur ? nextAfter(cur) : upcoming
+    nx.textContent = nextSlot ? nextSlot.name : '—'
+    nxTime.textContent = nextSlot ? fmtHM(nextSlot.start) : ''
 
     items.forEach((li, k) => {
       const s = slots[k]
@@ -250,7 +256,7 @@ export function renderViewer(root: HTMLElement, ev: EventData, payload: string):
     })
 
     if (!slots.length) {
-      show({ label: 'NO TIMETABLE', sub: 'This link has no sets.', timer: '--:--', progress: 0, set: '--:-- – --:--', next: '', level: '' })
+      show({ label: 'NO TIMETABLE', sub: 'This link has no sets.', timer: '--:--', progress: 0, set: '--:-- – --:--', level: '' })
       return
     }
 
@@ -277,19 +283,16 @@ export function renderViewer(root: HTMLElement, ev: EventData, payload: string):
           timer: fmtDur(wait),
           progress: 0,
           set: rangeOf(target),
-          next: '',
           level: wait <= SOON_MS ? 'soon' : '',
         })
       } else if (t < target.end) {
         const remain = target.end - t
-        const following = nextAfter(target)
         show({
           label: 'TIME LEFT',
           sub: 'ON AIR',
           timer: fmtDur(remain),
           progress: (t - target.start) / (target.end - target.start),
           set: rangeOf(target),
-          next: nextLine(following),
           level: levelOf(remain),
         })
       } else if (t - target.end < OVER_SHOW_MS) {
@@ -298,16 +301,15 @@ export function renderViewer(root: HTMLElement, ev: EventData, payload: string):
         const following = nextAfter(target)
         show({
           label: acked ? 'OVERTIME' : 'OVERTIME · TAP TO STOP FLASHING',
-          // 実際に交代したかはアプリから分からないので、促すのではなく状況を伝える
-          sub: following ? `Next: ${following.name}` : 'Last set of the night',
+          // 次のDJは NEXT 行に出るので、最後のセットの時だけ補足する
+          sub: following ? '' : 'Last set of the night',
           timer: '+' + fmtDur(t - target.end),
           progress: 1,
           set: rangeOf(target),
-          next: '',
           level: acked ? 'overAck' : 'over',
         })
       } else {
-        show({ label: 'SET COMPLETE', sub: 'Great set!', timer: '--:--', progress: 1, set: rangeOf(target), next: '', level: '' })
+        show({ label: 'SET COMPLETE', sub: 'Great set!', timer: '--:--', progress: 1, set: rangeOf(target), level: '' })
       }
       return
     }
@@ -321,7 +323,6 @@ export function renderViewer(root: HTMLElement, ev: EventData, payload: string):
         timer: fmtDur(remain),
         progress: (t - cur.start) / (cur.end - cur.start),
         set: rangeOf(cur),
-        next: nextLine(nextAfter(cur)),
         level: levelOf(remain),
       })
     } else if (upcoming) {
@@ -331,11 +332,10 @@ export function renderViewer(root: HTMLElement, ev: EventData, payload: string):
         timer: fmtDur(upcoming.start - t),
         progress: 0,
         set: rangeOf(upcoming),
-        next: '',
         level: '',
       })
     } else {
-      show({ label: 'EVENT OVER', sub: 'Thank you!', timer: '--:--', progress: 1, set: '--:-- – --:--', next: '', level: '' })
+      show({ label: 'EVENT OVER', sub: 'Thank you!', timer: '--:--', progress: 1, set: '--:-- – --:--', level: '' })
     }
   }
 

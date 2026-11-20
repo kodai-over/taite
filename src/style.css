@@ -179,12 +179,22 @@ body.lock { overflow: hidden; }
   font-family: var(--mono); font-variant-numeric: tabular-nums; font-weight: 700;
   font-size: clamp(16px, 4.6vw, 26px); white-space: nowrap;
 }
-.np-row {
+/* NOW PLAYING / NEXT: 見出し・DJ名・時刻（NOW PLAYING は終了時刻、NEXT は開始時刻）を揃えて並べる */
+.lineup {
   grid-column: 1 / -1;
-  display: flex; align-items: baseline; justify-content: center; gap: 10px;
-  margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--line); min-width: 0;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: baseline;
+  gap: 6px 12px;
+  margin: 10px 0 0;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+  text-align: left;
+  min-width: 0;
 }
-.np-value { font-size: clamp(14px, 4.2vw, 18px); font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lineup dd { margin: 0; }
+.lu-name { font-size: clamp(14px, 4.2vw, 18px); font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.lu-time { font-family: var(--mono); font-variant-numeric: tabular-nums; font-size: clamp(14px, 4.2vw, 18px); font-weight: 700; color: var(--muted); }
 .stage > .bar { margin-bottom: auto; }
 
 .stage-label { font-size: 13px; font-weight: 700; letter-spacing: 0.12em; color: var(--muted); }
@@ -201,7 +211,6 @@ body.lock { overflow: hidden; }
 .bar { width: 100%; height: 8px; margin-top: 6px; background: var(--surface-2); border-radius: 99px; overflow: hidden; }
 .bar-fill { height: 100%; background: var(--accent); transform-origin: left; transform: scaleX(0); transition: transform 0.25s linear; }
 
-.next { min-height: 1.4em; color: var(--muted); font-family: var(--mono); font-size: 14px; text-align: center; }
 
 .t-bottom { display: flex; align-items: center; gap: 8px; }
 .t-bottom .btn { flex: 1; }
@@ -303,7 +312,6 @@ body[data-level='overAck'] .bar-fill { background: var(--w1); }
 /* 横向き（ブースに立てかける用）: 高さが足りないので補助的な表示を省き、NOW / SET を数字の左に縦に並べる */
 @media (orientation: landscape) and (max-height: 520px) {
   .view-timer { max-width: none; gap: 6px; }
-  .next { display: none; }
   .stage { display: grid; grid-template-columns: auto 1fr; grid-template-rows: auto 1fr auto auto; column-gap: 24px; padding: 10px 16px; }
   .now-set { grid-row: 1 / -1; grid-template-columns: 1fr; margin: 0; padding: 0 20px 0 0; border-bottom: 0; border-right: 1px solid var(--line); align-content: center; row-gap: 14px; }
   .ns-cell + .ns-cell { border-left: 0; }

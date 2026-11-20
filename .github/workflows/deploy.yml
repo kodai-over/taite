@@ -1,4 +1,4 @@
-name: Deploy to GitHub Pages
+name: GitHub Pages (redirect to Cloudflare)
 
 on:
   push:
@@ -18,17 +18,12 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
+      # 本体は Cloudflare Workers（npm run deploy）。ここは以前のURLを新しいURLへ転送するページだけを置く
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: npm
-      - run: npm ci
-      - run: npm run build
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: dist
+          path: redirect
 
   deploy:
     needs: build

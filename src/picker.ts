@@ -53,7 +53,53 @@ function setupWheel(el: HTMLElement, onChange: () => void): () => number {
     cancelAnimationFrame(raf)
     raf = requestAnimationFrame(paint)
   })
+  // マウスのドラッグ（タッチは標準のスクロールに任せる）。ドラッグ中はスナップを切り、離したら一番近い値へ。少し勢いも残す
+  let drag: { y: number; top: number; last: number; v: number; t: number; moved: boolean } | null = null
+  let justDragged = false
+  el.addEventListener('pointerdown', (e) => {
+    if (e.pointerType !== 'mouse' || e.button !== 0) return
+    drag = { y: e.clientY, top: el.scrollTop, last: e.clientY, v: 0, t: e.timeStamp, moved: false }
+    el.setPointerCapture(e.pointerId)
+    el.classList.add('dragging')
+  })
+  el.addEventListener('pointermove', (e) => {
+    if (!drag) return
+    if (Math.abs(e.clientY - drag.y) > 3) drag.moved = true
+    const dt = Math.max(1, e.timeStamp - drag.t)
+    drag.v = (drag.last - e.clientY) / dt // px/ms（上にドラッグ = 正 = 下の値へ）
+    drag.last = e.clientY
+    drag.t = e.timeStamp
+    el.scrollTop = drag.top + (drag.y - e.clientY)
+  })
+  const endDrag = (e: PointerEvent) => {
+    if (!drag) return
+    const d = drag
+    drag = null
+    el.classList.remove('dragging')
+    if (el.hasPointerCapture(e.pointerId)) el.releasePointerCapture(e.pointerId)
+    if (!d.moved) return
+    justDragged = true
+    setTimeout(() => (justDragged = false), 0)
+    // 勢いのぶんだけ先へ（最大3つ。離す直前に止まっていたら勢いなし）
+    const moving = e.timeStamp - d.t < 80 && Math.abs(d.v) > 0.3
+    const fling = moving ? Math.max(-3 * ITEM, Math.min(3 * ITEM, d.v * 180)) : 0
+    const i = Math.min(items.length - 1, Math.max(0, Math.round((el.scrollTop + fling) / ITEM)))
+    el.scrollTo({ top: i * ITEM, behavior: 'smooth' })
+  }
+  el.addEventListener('pointerup', endDrag)
+  el.addEventListener('pointercancel', endDrag)
+  // マウスのホイールは1回で1つずつ進める
+  el.addEventListener(
+    'wheel',
+    (e) => {
+      if (e.deltaMode === 0 && Math.abs(e.deltaY) < 4) return
+      e.preventDefault()
+      el.scrollTo({ top: (read() + Math.sign(e.deltaY)) * ITEM, behavior: 'smooth' })
+    },
+    { passive: false },
+  )
   el.addEventListener('click', (e) => {
+    if (justDragged) return
     const it = (e.target as HTMLElement).closest<HTMLElement>('.wheel-item')
     if (it) el.scrollTo({ top: Number(it.dataset.i) * ITEM, behavior: 'smooth' })
   })
@@ -165,5 +211,34 @@ export function pickDate(value: string): Promise<string | null> {
       close()
       resolve(null)
     })
+  })
+}
+
+/**
+ * 確認・お知らせのパネル（ブラウザ標準の confirm / alert は、埋め込み画面などで表示されず
+ * すぐ「いいえ」になることがあるため使わない）。
+ * 確認: OK で true、キャンセル・外側タップ・Esc で false。お知らせ（cancel: false）は閉じると false。
+ */
+export function ask(o: { title: string; text?: string; ok: string; danger?: boolean; cancel?: boolean; field?: string }): Promise<boolean> {
+  return new Promise((resolve) => {
+    const { root, close } = openSheet(
+      o.title,
+      `<header class="sheet-h"><span class="sheet-t">${esc(o.title)}</span></header>
+       ${o.text ? `<p class="ask-text">${esc(o.text)}</p>` : ''}
+       ${o.field ? `<input class="ask-field" readonly value="${esc(o.field)}" aria-label="${esc(o.title)}">` : ''}
+       <div class="ask-btns">
+         ${o.cancel === false ? '' : '<button type="button" class="ask-cancel">Cancel</button>'}
+         <button type="button" class="ask-ok${o.danger ? ' danger-fill' : ''}">${esc(o.ok)}</button>
+       </div>`,
+    )
+    const done = (v: boolean) => {
+      close()
+      resolve(v)
+    }
+    root.addEventListener('cancel', () => done(false))
+    root.querySelector('.ask-ok')!.addEventListener('click', () => done(true))
+    root.querySelector('.ask-cancel')?.addEventListener('click', () => done(false))
+    const f = root.querySelector<HTMLInputElement>('.ask-field')
+    if (f) setTimeout(() => (f.focus(), f.select()), 250)
   })
 }

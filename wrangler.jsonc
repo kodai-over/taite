@@ -1,0 +1,17 @@
+{
+  // TAITE: 画面（dist/）と API（worker/）を Cloudflare Workers 1つで配信する
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "taite",
+  "main": "worker/index.ts",
+  "compatibility_date": "2025-09-01",
+  "assets": {
+    "directory": "./dist",
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/api/*"]
+  },
+  "durable_objects": {
+    "bindings": [{ "name": "EVENTS", "class_name": "EventRoom" }]
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["EventRoom"] }],
+  "observability": { "enabled": true }
+}

@@ -19,15 +19,15 @@ const HOW_TO =
  * タブを離れると OS が解除するので、戻ってきた時・タップ時に取り直す。
  * 端末やブラウザに断られた時は、ボタンを押した時に理由と代わりの方法を知らせる（無反応にしない）。
  */
-export function initWakeLock(btn: HTMLButtonElement): () => void {
+export function initWakeLock(btn: HTMLButtonElement, initial = true, onWanted?: (on: boolean) => void): () => void {
   const supported = 'wakeLock' in navigator
   let sentinel: WakeLockSentinel | null = null
-  let wanted = true
+  let wanted = initial
   let refused = false // 直近の要求が断られた（省電力モード、埋め込み表示など）
   let disposed = false
 
   const render = () => {
-    // 文字は出さず、点灯（太陽）/ 消灯可（月）のアイコンで状態を示す
+    // 文字は出さず、湯気の立つカップ（点灯を保つ）/ 湯気のないカップ（消灯してよい）で状態を示す
     const state = !supported ? 'na' : sentinel ? 'on' : refused ? 'refused' : 'off'
     const text =
       state === 'on'
@@ -70,6 +70,7 @@ export function initWakeLock(btn: HTMLButtonElement): () => void {
     }
     if (sentinel) {
       wanted = false
+      onWanted?.(false)
       const s = sentinel
       sentinel = null
       await s.release()
@@ -78,6 +79,7 @@ export function initWakeLock(btn: HTMLButtonElement): () => void {
       return
     }
     wanted = true
+    onWanted?.(true)
     await acquire()
     toast(sentinel ? 'Screen stays on' : `Couldn't keep the screen on. ${HOW_TO}`)
   }

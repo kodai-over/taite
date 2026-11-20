@@ -10,6 +10,10 @@ export const icon = {
   play: svg('<path d="M8 5.5v13l10-6.5z" fill="currentColor" stroke="none"/>'),
   /** 戻る */
   back: svg('<path d="M14.5 5.5 8 12l6.5 6.5"/>'),
+  /** 一覧（ホーム） */
+  home: svg('<path d="M4 11.5 12 5l8 6.5"/><path d="M6.5 10v9h11v-9"/>'),
+  /** 電波が切れている */
+  offline: svg('<path d="M4 9.5a12 12 0 0 1 16 0M7 13a7.5 7.5 0 0 1 10 0M10 16.5a3 3 0 0 1 4 0"/><path d="M4 4l16 16"/>'),
   /** 編集・複製 */
   edit: svg('<path d="M14.5 5.5l4 4L9 19H5v-4z"/><path d="M12.5 7.5l4 4"/>'),
   /** ドラッグで並べ替えるつまみ */
@@ -18,6 +22,8 @@ export const icon = {
   remove: svg('<path d="M6.5 6.5l11 11M17.5 6.5l-11 11"/>'),
   copy: svg('<path d="M9 9h10v10H9z"/><path d="M5 15V5h10"/>'),
   check: svg('<path d="M5 12.5l4.5 4.5L19 7.5"/>'),
+  /** 書き出し（保存） */
+  download: svg('<path d="M12 4v11M7.5 10.5 12 15l4.5-4.5"/><path d="M5 19h14"/>'),
   share: svg('<path d="M12 4v11M7.5 8.5 12 4l4.5 4.5"/><path d="M5 13v7h14v-7"/>'),
   calendar: svg('<path d="M4.5 6.5h15v13h-15zM4.5 10.5h15M8.5 4v4M15.5 4v4"/>'),
   /** 画面を消さない（オン）: 湯気の立つコーヒーカップ（スリープ防止アプリで定番の印） */

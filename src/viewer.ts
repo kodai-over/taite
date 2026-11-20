@@ -12,15 +12,44 @@ const SOON_MS = 10 * MIN // 出番の何分前から「まもなく出番」に�
 const levelOf = (remain: number): Level =>
   remain <= 1 * MIN ? 'w1' : remain <= 5 * MIN ? 'w5' : remain <= 10 * MIN ? 'w10' : ''
 
-export function renderViewer(root: HTMLElement, ev: EventData, payload: string): () => void {
+export interface ViewerOptions {
+  /** 端末に「自分のDJ」などを保存する時のキー（イベントごとに変える） */
+  storeKey: string
+  /** 一覧（ホーム）へのリンク */
+  homeHref?: string
+}
+
+/**
+ * リアルタイム更新で描き直しても保ちたい、その画面の状態（タイムテーブルごと）。
+ * スリープ防止のオン/オフ、直前の警告レベル（同じレベルで振動し直さない）、一覧のスクロール位置。
+ */
+const kept = new Map<string, { wake?: boolean; level?: Level; scroll?: number }>()
+
+export function renderViewer(root: HTMLElement, ev: EventData, opts: ViewerOptions): () => void {
   const slots = resolve(ev)
   const title = esc(ev.t || 'TAITE')
-  const meKey = `taite:me:${ev.d}:${ev.t}`
+  const meKey = `taite:me:${opts.storeKey}`
+  const meIdxKey = `${meKey}:i`
+  const keep = kept.get(opts.storeKey) ?? {}
+  kept.set(opts.storeKey, keep)
   const saved = store.get(meKey)
   // null = まだ選んでいない（タイムテーブルから選んでもらう）、それ以外 = 自分のDJ名
-  let me: string | null = slots.some((s) => s.name === saved) ? saved : null
+  // 主催者がDJ名を直しても見失わないよう、名前で見つからなければ同じ番号の枠を自分とみなす
+  let me: string | null = null
+  if (saved !== null) {
+    const byName = slots.findIndex((s) => s.name === saved)
+    const savedIdx = Number(store.get(meIdxKey))
+    const idx = byName >= 0 ? byName : Number.isInteger(savedIdx) && slots[savedIdx] ? savedIdx : -1
+    if (idx >= 0) {
+      me = slots[idx].name
+      if (me !== saved) store.set(meKey, me)
+      store.set(meIdxKey, String(idx))
+    }
+  }
   // 表示中の画面（狭い画面用）。タイムテーブルが起点で、名前をタップするとタイマーへ
-  let view: 'table' | 'timer' = me ? 'timer' : 'table'
+  // リアルタイム更新で描き直した時も、今見ている画面を保つ（履歴の状態を優先）
+  const hs = (history.state as { taite?: string } | null)?.taite
+  let view: 'table' | 'timer' = hs === 'table' ? 'table' : hs === 'timer' ? 'timer' : 'table'
 
   // 確認用（mock.html）: URLのパラメータで表示状態を固定する。保存はしない。
   //   ?me=none（未選択） / DJ名、?view=table、?ack=1（超過の点滅停止済み）
@@ -41,6 +70,7 @@ export function renderViewer(root: HTMLElement, ev: EventData, payload: string):
           <span class="ev">${title}</span>
           <span id="who-name" class="me"></span>
         </div>
+        <span class="sync" hidden></span>
         <button type="button" id="wake" class="ibtn wake"></button>
       </header>
 
@@ -62,10 +92,11 @@ export function renderViewer(root: HTMLElement, ev: EventData, payload: string):
 
     <section class="pane pane-table" aria-label="Timetable">
       <header class="top">
+        ${opts.homeHref ? `<a class="ibtn" href="${opts.homeHref}" aria-label="All Timetables" title="All Timetables">${icon.home}</a>` : ''}
         <span class="ev">${title}</span>
-        <a class="ibtn" href="#e.${payload}" aria-label="Edit or duplicate this timetable" title="Edit / duplicate">${icon.edit}</a>
+        <span class="sync" hidden></span>
       </header>
-      <p id="hint" class="l-hint">${slots.length ? 'Tap a name to open its timer' : 'This link has no sets'}</p>
+      ${slots.length ? '' : '<p class="l-hint">This link has no sets</p>'}
       <ol id="list" class="list">
         ${slots
           .map(
@@ -98,7 +129,6 @@ export function renderViewer(root: HTMLElement, ev: EventData, payload: string):
   const list = $<HTMLOListElement>('list')
   const items = [...list.querySelectorAll<HTMLLIElement>('li')]
   const deck = $('deck')
-  const hint = $('hint')
 
   /** 表示する画面（タイマー / タイムテーブル）を切り替える（広い画面では CSS で両方並べる） */
   const renderView = () => {
@@ -106,13 +136,13 @@ export function renderViewer(root: HTMLElement, ev: EventData, payload: string):
     // 画面に固定してスクロールさせない（一覧は内側でスクロール）
     document.body.classList.add('lock')
     whoName.textContent = me ?? '—'
-    hint.hidden = !!me && slots.length > 0
   }
 
   /** そのDJのタイマーを開く。タイムテーブルの上に積むので、端末の「戻る」でも一覧に戻れる */
   const openTimer = (name: string) => {
     me = name
     store.set(meKey, name)
+    store.set(meIdxKey, String(slots.findIndex((s) => s.name === name)))
     if (view !== 'timer') {
       history.pushState({ taite: 'timer' }, '')
       view = 'timer'
@@ -142,7 +172,7 @@ export function renderViewer(root: HTMLElement, ev: EventData, payload: string):
   }
   window.addEventListener('popstate', onPop)
 
-  let lastLevel: Level = ''
+  let lastLevel: Level = keep.level ?? ''
   /** 超過の点滅をタップで止めた枠（同じ枠の間は点滅させない） */
   const ackKey = `${meKey}:ack`
   // 枠は番号ではなく内容で識別する（タイムテーブルを直して並びが変わっても別の枠と取り違えないように）
@@ -179,6 +209,7 @@ export function renderViewer(root: HTMLElement, ev: EventData, payload: string):
       navigator.vibrate?.([200, 100, 200])
     }
     lastLevel = o.level
+    keep.level = o.level
   }
 
   const nextAfter = (s: ResolvedSlot): ResolvedSlot | undefined => slots.find((x) => x.start >= s.end && x !== s)
@@ -276,10 +307,12 @@ export function renderViewer(root: HTMLElement, ev: EventData, payload: string):
   tick()
   // 秒の切り替わりに合わせて更新
   const timerId = setInterval(tick, 250)
-  const disposeWake = initWakeLock($<HTMLButtonElement>('wake'))
+  const disposeWake = initWakeLock($<HTMLButtonElement>('wake'), keep.wake ?? true, (on) => (keep.wake = on))
+  if (keep.scroll) list.scrollTop = keep.scroll
   document.title = `${ev.t || 'TAITE'} – Timer`
 
   return () => {
+    keep.scroll = list.scrollTop
     clearInterval(timerId)
     disposeWake()
     window.removeEventListener('popstate', onPop)

@@ -1,12 +1,12 @@
 import QRCode from 'qrcode'
-import { encode, fromMin, normalize, resolve, toMin, tzOffsetFor, type EventData, type Slot } from './data'
+import { cache, createEvent, deleteEvent, EditKeyError, forget, mine, saveEvent } from './api'
+import { fromMin, resolve, toMin, tzOffsetFor, type EventData, type Slot } from './data'
 import { icon } from './icons'
-import { pickDate, pickTime } from './picker'
+import { ask, pickDate, pickTime } from './picker'
 import { esc, fmtHM, store, todayISO } from './util'
 
-const DRAFT_KEY = 'taite:draft'
-
-const defaultEvent = (): EventData => ({
+/** 新しいタイムテーブルの初期値 */
+export const newEventData = (): EventData => ({
   v: 1,
   t: '',
   d: todayISO(),
@@ -14,40 +14,46 @@ const defaultEvent = (): EventData => ({
   s: [['21:00', '22:00', '']],
 })
 
-function loadDraft(): EventData | null {
-  const raw = store.get(DRAFT_KEY)
-  if (!raw) return null
-  try {
-    return normalize(JSON.parse(raw))
-  } catch {
-    return null
-  }
+const base = () => `${location.origin}${location.pathname}`
+export const links = (id: string, key: string) => ({
+  dj: `${base()}#/dj/${id}`,
+  public: `${base()}#/t/${id}`,
+  edit: `${base()}#/edit/${id}/${key}`,
+})
+
+export const fmtDate = (d: string) => {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(d)
+  if (!m) return 'Choose Date'
+  return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3])).toLocaleDateString('en-US', {
+    weekday: 'short', month: 'short', day: 'numeric', year: 'numeric',
+  })
 }
 
-export const shareUrl = (ev: EventData): string =>
-  `${location.origin}${location.pathname}#${encode(ev)}`
-
-export function renderEditor(root: HTMLElement, init?: EventData): () => void {
-  const draft = loadDraft()
-  let ev: EventData = init ?? draft ?? defaultEvent()
-  // 編集リンクを開いた時、作成中の別の下書きがあれば黙って上書きせずに確認する
-  if (init && draft && JSON.stringify(draft.s) !== JSON.stringify(init.s) && draft.s.some(([, , n]) => n.trim())) {
-    const label = draft.t || 'Untitled'
-    if (!confirm(`Replace your draft "${label}" with the timetable from this link?\n(Cancel to keep editing your draft.)`)) ev = draft
-  }
+/**
+ * 作成・編集画面。
+ * - 新規（id なし）: 入力して Create を押すとサーバーに登録し、編集画面に切り替わる
+ * - 編集: 変更は自動でサーバーに保存され、DJ用・一般用リンクを開いている全員に数秒で反映される
+ */
+export function renderEditor(root: HTMLElement, ctx: { id?: string; key?: string; data: EventData }): () => void {
+  const id = ctx.id ?? ''
+  const key = ctx.key ?? ''
+  const draft = !id
+  const ev: EventData = structuredClone(ctx.data)
+  const url = links(id, key)
+  let tab: 'dj' | 'public' = 'dj'
 
   root.innerHTML = `
   <div class="editor">
     <header class="e-head">
+      <a class="ibtn" href="#/" aria-label="All Timetables" title="All Timetables">${icon.back}</a>
       <h1 class="brand">TAITE</h1>
-      <p class="tagline">DJ Set Timer</p>
+      <span id="save" class="save" role="status"></span>
     </header>
 
-    <h2 class="grp-h">Event</h2>
     <div class="grp">
       <label class="cell">
-        <span class="cell-l">Name</span>
-        <input id="title" class="cell-in" maxlength="60" placeholder="Event Name" autocomplete="off">
+        <span class="cell-l">Event</span>
+        <input id="title" class="cell-in" maxlength="80" placeholder="Event Name" autocomplete="off">
       </label>
       <div class="cell">
         <span class="cell-l">Date</span>
@@ -60,16 +66,47 @@ export function renderEditor(root: HTMLElement, init?: EventData): () => void {
     <button id="add" class="add" type="button" aria-label="Add Set" title="Add Set">${icon.plus}</button>
     <ul id="msg" class="msg"></ul>
 
+    ${
+      draft
+        ? `<button id="create" class="go" type="button">Create Timetable</button>`
+        : `
     <h2 class="grp-h">Share</h2>
-    <section class="grp share" aria-label="Share">
-      <img id="qr" class="qr" alt="QR code for the share link" width="240" height="240" hidden>
-      <div class="share-row">
-        <input id="url" class="url" readonly aria-label="Share link">
-        <button id="copy" class="ibtn" type="button" aria-label="Copy Link" title="Copy Link">${icon.copy}</button>
-        <button id="nshare" class="ibtn" type="button" aria-label="Share" title="Share" hidden>${icon.share}</button>
+    <div class="seg share-tabs" role="tablist" aria-label="Share With">
+      <button type="button" role="tab" data-tab="dj" aria-selected="true">DJ</button>
+      <button type="button" role="tab" data-tab="public" aria-selected="false">Public</button>
+    </div>
+    <p id="share-note" class="share-note"></p>
+    <div class="grp share-grp">
+      <div class="cell link-cell">
+        <span class="cell-l">Link</span>
+        <span id="link-v" class="link-v"></span>
+        <span class="link-ops">
+          <button class="ibtn" type="button" data-copy="tab" aria-label="Copy Link" title="Copy Link">${icon.copy}</button>
+          <button class="ibtn" type="button" data-share="tab" aria-label="Share Link" title="Share Link" hidden>${icon.share}</button>
+        </span>
       </div>
-    </section>
-    <a id="open" class="go" aria-label="Open Timer">${icon.play}<span>Open Timer</span></a>
+      <div class="cell qr-cell">
+        <span class="cell-l">QR Code</span>
+        <img id="qr" class="qr" alt="QR code" width="240" height="240" hidden>
+        <span class="link-ops">
+          <button id="qr-save" class="ibtn" type="button" aria-label="Save QR Code" title="Save QR Code">${icon.download}</button>
+        </span>
+      </div>
+    </div>
+
+    <h2 class="grp-h manage-h">Manage</h2>
+    <div class="grp edit-link">
+      <div class="cell link-cell">
+        <span class="cell-l">Edit Link</span>
+        <span class="link-v">Keep this private. Anyone with it can edit.</span>
+        <span class="link-ops">
+          <button class="ibtn" type="button" data-copy="edit" aria-label="Copy Edit Link" title="Copy Edit Link">${icon.copy}</button>
+        </span>
+      </div>
+    </div>
+
+    <button id="delete" class="danger" type="button">Delete Timetable</button>`
+    }
   </div>`
 
   const $ = <T extends HTMLElement>(id: string) => root.querySelector<T>('#' + id)!
@@ -77,20 +114,9 @@ export function renderEditor(root: HTMLElement, init?: EventData): () => void {
   const date = $<HTMLButtonElement>('date')
   const list = $<HTMLOListElement>('slots')
   const msg = $<HTMLUListElement>('msg')
-  const urlInput = $<HTMLInputElement>('url')
-  const qr = $<HTMLImageElement>('qr')
-  const open = $<HTMLAnchorElement>('open')
-  const copy = $<HTMLButtonElement>('copy')
-  const nshare = $<HTMLButtonElement>('nshare')
+  const saveEl = $('save')
 
   title.value = ev.t
-  const fmtDate = (d: string) => {
-    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(d)
-    if (!m) return 'Choose Date'
-    return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3])).toLocaleDateString('en-US', {
-      weekday: 'short', month: 'short', day: 'numeric', year: 'numeric',
-    })
-  }
   const showDate = () => (date.textContent = fmtDate(ev.d))
   showDate()
 
@@ -110,18 +136,73 @@ export function renderEditor(root: HTMLElement, init?: EventData): () => void {
       .join('')
   }
 
-  let qrToken = 0
+  /* ---------- 自動保存（入力が止まってから少し待って保存。失敗したら少しあけて再試行） ---------- */
+  let saveTimer = 0
+  let saving = false
+  let dirty = false
+  let blocked = false // 入力に問題があって保存しない状態
+  let disposed = false
+  // 保存の状態は、問題がある時（電波なし・編集リンクが無効）だけ表示する
+  const showSave = (text: string, kind: '' | 'warn' = '') => {
+    saveEl.textContent = kind === 'warn' ? text : ''
+    saveEl.dataset.kind = kind
+  }
+  const flush = async () => {
+    if (saving || !dirty || disposed || blocked) return
+    saving = true
+    dirty = false
+    showSave('Saving…')
+    try {
+      await saveEvent(id, key, ev)
+      mine.put({ id, key, t: ev.t, d: ev.d })
+      showSave(dirty ? 'Saving…' : 'Saved')
+    } catch (err) {
+      if (err instanceof EditKeyError) {
+        showSave('This edit link is not valid', 'warn')
+        saving = false
+        return
+      }
+      dirty = true
+      showSave('Offline. Will retry.', 'warn')
+      // 電波がない間は4秒おきに再試行（下の schedule() で0.5秒に縮めない）
+      saving = false
+      clearTimeout(saveTimer)
+      saveTimer = window.setTimeout(flush, 4000)
+      return
+    }
+    saving = false
+    if (dirty) schedule()
+  }
+  const schedule = () => {
+    clearTimeout(saveTimer)
+    saveTimer = window.setTimeout(flush, 500)
+  }
+
   const update = () => {
     ev.z = tzOffsetFor(ev.d)
-    store.set(DRAFT_KEY, JSON.stringify(ev))
 
-    // バリデーション
+    // 入力の確認
     const problems: string[] = []
     const hasDate = /^\d{4}-\d{2}-\d{2}$/.test(ev.d)
     const resolved = resolve(ev)
-    if (!hasDate) problems.push('Enter the event date.')
+    if (!hasDate) problems.push('Choose the event date.')
     else if (resolved.length !== ev.s.length) problems.push('Some sets are missing a start or end time.')
     if (ev.s.some(([, , n]) => !n.trim())) problems.push('Some sets are missing a DJ name.')
+    // 日付・時刻・DJ名が欠けている間は保存（＝全員への配信）をしない。重なりは B2B などもあるので保存する
+    blocked = problems.length > 0
+    if (draft) {
+      $<HTMLButtonElement>('create').disabled = blocked
+    } else {
+      dirty = true
+      if (blocked) {
+        clearTimeout(saveTimer)
+        showSave('Not saved. Fill in the sets.', 'warn')
+      } else {
+        if (saveEl.dataset.kind === 'warn' && saveEl.textContent?.startsWith('Not saved')) showSave('')
+        schedule()
+        mine.put({ id, key, t: ev.t, d: ev.d })
+      }
+    }
     for (let k = 1; k < resolved.length; k++) {
       const a = resolved[k - 1]
       const b = resolved[k]
@@ -135,33 +216,44 @@ export function renderEditor(root: HTMLElement, init?: EventData): () => void {
     msg.innerHTML = problems
       .map((p, k) => `<li class="${k === 0 && resolved.length ? 'ok' : 'warn'}">${esc(p)}</li>`)
       .join('')
+  }
 
-    // 開催日がないと時刻を計算できないので、共有させない
-    copy.disabled = !hasDate
-    nshare.disabled = !hasDate
-    open.classList.toggle('disabled', !hasDate)
-    open.setAttribute('aria-disabled', String(!hasDate))
+  /* ---------- 共有（DJ / Public のタブごとにリンクとQRコード） ---------- */
+  let qrToken = 0
+  const showTab = () => {
+    if (draft) return
+    root.querySelectorAll<HTMLButtonElement>('[data-tab]').forEach((b) => b.setAttribute('aria-selected', String(b.dataset.tab === tab)))
+    $('link-v').textContent = url[tab].replace(/^https?:\/\//, '')
+    $('share-note').textContent =
+      tab === 'dj'
+        ? 'For DJs. Opens the timetable and their set timer. Ask them to open it once before the show, so it works without signal.'
+        : 'For everyone. Shows the timetable only.'
+    const qr = $<HTMLImageElement>('qr')
     const token = ++qrToken
-    if (!hasDate) {
-      urlInput.value = ''
-      urlInput.placeholder = 'Add a date to get a link'
-      open.removeAttribute('href')
-      qr.hidden = true
-      return
-    }
-
-    const url = shareUrl(ev)
-    urlInput.value = url
-    open.href = url
-    QRCode.toDataURL(url, { margin: 1, width: 480, errorCorrectionLevel: 'L' })
+    QRCode.toDataURL(url[tab], { margin: 1, width: 480, errorCorrectionLevel: 'M' })
       .then((d) => {
         if (token !== qrToken) return
         qr.src = d
         qr.hidden = false
       })
-      .catch(() => {
-        qr.hidden = true
-      })
+      .catch(() => (qr.hidden = true))
+  }
+
+  /** QRコードを画像（PNG）で書き出す。スマホは共有シート（写真に保存など）、それ以外はダウンロード */
+  const saveQr = async () => {
+    const dataUrl = await QRCode.toDataURL(url[tab], { margin: 4, width: 1024, errorCorrectionLevel: 'M' })
+    const safe = (ev.t || 'timetable').replace(/[^\w\-]+/g, '-').replace(/^-+|-+$/g, '').toLowerCase() || 'timetable'
+    const name = `taite-${safe}-${tab}-qr.png`
+    const blob = await (await fetch(dataUrl)).blob()
+    const file = new File([blob], name, { type: 'image/png' })
+    if (matchMedia('(pointer: coarse)').matches && navigator.canShare?.({ files: [file] })) {
+      await navigator.share({ files: [file], title: name }).catch(() => {})
+      return
+    }
+    const a = document.createElement('a')
+    a.href = dataUrl
+    a.download = name
+    a.click()
   }
 
   title.addEventListener('input', () => {
@@ -286,32 +378,106 @@ export function renderEditor(root: HTMLElement, init?: EventData): () => void {
     list.querySelector<HTMLInputElement>('.slot:last-child .n')?.focus({ preventScroll: false })
   })
 
-  copy.addEventListener('click', async () => {
-    try {
-      await navigator.clipboard.writeText(urlInput.value)
-    } catch {
-      urlInput.select()
-      document.execCommand('copy')
+  root.addEventListener('click', async (e) => {
+    const el = e.target as HTMLElement
+    const c = el.closest<HTMLButtonElement>('[data-copy]')
+    if (c) {
+      const text = url[c.dataset.copy === 'edit' ? 'edit' : tab]
+      try {
+        await navigator.clipboard.writeText(text)
+      } catch {
+        void ask({ title: 'Copy This Link', field: text, ok: 'Done', cancel: false })
+      }
+      c.innerHTML = icon.check
+      c.classList.add('done')
+      setTimeout(() => {
+        c.innerHTML = icon.copy
+        c.classList.remove('done')
+      }, 1500)
+      return
     }
-    copy.innerHTML = icon.check
-    copy.classList.add('done')
-    setTimeout(() => {
-      copy.innerHTML = icon.copy
-      copy.classList.remove('done')
-    }, 1500)
+    const sh = el.closest<HTMLButtonElement>('[data-share]')
+    if (sh) {
+      const which = tab
+      navigator
+        .share({ title: ev.t || 'TAITE', text: `${ev.t || 'TAITE'} ${which === 'dj' ? 'timetable for DJs' : 'timetable'}`, url: url[which] })
+        .catch(() => {})
+      return
+    }
+    const tb = el.closest<HTMLButtonElement>('[data-tab]')
+    if (tb) {
+      tab = tb.dataset.tab as 'dj' | 'public'
+      showTab()
+      return
+    }
+    if (el.closest('#qr-save')) void saveQr()
+  })
+  // 新規: Create で登録して編集画面へ
+  if (draft)
+    $('create').addEventListener('click', async () => {
+      const btn = $<HTMLButtonElement>('create')
+      btn.disabled = true
+      btn.textContent = 'Creating…'
+      try {
+        const res = await createEvent(ev)
+        mine.put({ id: res.id, key: res.key, t: ev.t, d: ev.d })
+        cache.put(res.id, { data: ev, rev: 1 })
+        store.set('taite:draft', null) // 以前の版の下書きは、登録できてから消す
+        location.replace(`#/edit/${res.id}/${res.key}`)
+      } catch {
+        btn.disabled = false
+        btn.textContent = 'Create Timetable'
+        void ask({ title: "Can't Create Offline", text: 'Connect to the internet and try again.', ok: 'OK', cancel: false })
+      }
+    })
+
+  if (!draft) $('delete').addEventListener('click', async () => {
+    const yes = await ask({
+      title: `Delete "${ev.t || 'Untitled'}"?`,
+      text: "DJ and public links will stop working. This can't be undone.",
+      ok: 'Delete',
+      danger: true,
+    })
+    if (!yes) return
+    const btn = $<HTMLButtonElement>('delete')
+    btn.disabled = true
+    disposed = true // 保存を止める
+    clearTimeout(saveTimer)
+    try {
+      await deleteEvent(id, key)
+      forget(id)
+      location.replace('#/')
+    } catch (err) {
+      disposed = false
+      btn.disabled = false
+      void ask({
+        title: err instanceof EditKeyError ? 'Edit Link Not Valid' : "Can't Delete Offline",
+        text: err instanceof EditKeyError ? 'This edit link no longer works for this timetable.' : 'Connect to the internet and try again.',
+        ok: 'OK',
+        cancel: false,
+      })
+    }
   })
 
-  if ('share' in navigator) {
-    nshare.hidden = false
-    nshare.addEventListener('click', () => {
-      navigator
-        .share({ title: ev.t || 'TAITE', text: `${ev.t || 'TAITE'} timetable`, url: urlInput.value })
-        .catch(() => {})
-    })
+  if ('share' in navigator) root.querySelectorAll<HTMLElement>('[data-share]').forEach((b) => (b.hidden = false))
+
+  // 画面を離れる前に、保存していない変更を送る
+  const onHide = () => {
+    if (document.visibilityState === 'hidden') void flush()
   }
+  document.addEventListener('visibilitychange', onHide)
 
   renderSlots()
   update()
-  document.title = 'TAITE – Create'
-  return () => {}
+  dirty = false // 開いただけでは保存しない
+  clearTimeout(saveTimer)
+  if (!blocked) showSave('')
+  showTab()
+  document.title = draft ? 'New Timetable – TAITE' : `${ev.t || 'TAITE'} – Edit`
+  return () => {
+    void flush()
+    disposed = true
+    clearTimeout(saveTimer)
+    document.removeEventListener('visibilitychange', onHide)
+  }
 }

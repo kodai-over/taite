@@ -11,11 +11,11 @@ export function initWakeLock(btn: HTMLButtonElement): () => void {
   const render = () => {
     if (!supported) {
       btn.dataset.state = 'na'
-      btn.textContent = 'スリープ防止 非対応'
+      btn.textContent = 'Screen lock: not supported'
       return
     }
     btn.dataset.state = sentinel ? 'on' : 'off'
-    btn.textContent = sentinel ? '● スリープ防止 ON' : '○ タップでスリープ防止'
+    btn.textContent = sentinel ? '● Screen stays on' : '○ Keep screen on'
   }
 
   const acquire = async () => {
@@ -40,9 +40,9 @@ export function initWakeLock(btn: HTMLButtonElement): () => void {
   const onClick = async () => {
     if (!supported) {
       alert(
-        'この端末のブラウザはスリープ防止に対応していません。\n' +
-          'iPhone: 設定 > 画面表示と明るさ > 自動ロック を「なし」に\n' +
-          'Android: 設定 > ディスプレイ > 画面消灯 を長めに設定してください。',
+        "This browser can't keep the screen on.\n" +
+          'iPhone: Settings > Display & Brightness > Auto-Lock > Never\n' +
+          'Android: Settings > Display > Screen timeout > set a longer time',
       )
       return
     }

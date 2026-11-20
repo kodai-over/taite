@@ -30,41 +30,41 @@ export function renderEditor(root: HTMLElement, init?: EventData): () => void {
   let ev: EventData = init ?? draft ?? defaultEvent()
   // 編集リンクを開いた時、作成中の別の下書きがあれば黙って上書きせずに確認する
   if (init && draft && JSON.stringify(draft.s) !== JSON.stringify(init.s) && draft.s.some(([, , n]) => n.trim())) {
-    const label = draft.t || '名前なしのタイテ'
-    if (!confirm(`作成中の下書き「${label}」を、このリンクの内容で置き換えますか？\n（キャンセルすると下書きを開きます）`)) ev = draft
+    const label = draft.t || 'Untitled'
+    if (!confirm(`Replace your draft "${label}" with the timetable from this link?\n(Cancel to keep editing your draft.)`)) ev = draft
   }
 
   root.innerHTML = `
   <div class="editor">
     <header class="e-head">
       <h1>TAITE</h1>
-      <p>DJ Set Timer — タイテを作ってリンクを共有すると、DJは自分の出番までの時間とセット残り時間をスマホで確認できます。</p>
+      <p>DJ Set Timer — build a timetable and share the link. Each DJ sees the time until their set and the time left in it on their phone.</p>
     </header>
 
-    <label class="field"><span>イベント名</span>
-      <input id="title" maxlength="60" placeholder="例: NIGHT GROOVE vol.3" autocomplete="off">
+    <label class="field"><span>Event name</span>
+      <input id="title" maxlength="60" placeholder="e.g. NIGHT GROOVE vol.3" autocomplete="off">
     </label>
-    <label class="field"><span>開催日（最初の枠の日付）</span>
+    <label class="field"><span>Date (day of the first set)</span>
       <input id="date" type="date">
     </label>
 
-    <h2 class="sec">タイムテーブル</h2>
+    <h2 class="sec">Timetable</h2>
     <ol id="slots" class="slots"></ol>
-    <button id="add" class="btn ghost wide" type="button">＋ 枠を追加</button>
+    <button id="add" class="btn ghost wide" type="button">+ Add a set</button>
     <ul id="msg" class="msg"></ul>
 
     <section class="share">
-      <h2 class="sec">共有</h2>
+      <h2 class="sec">Share</h2>
       <div class="share-row">
-        <input id="url" readonly aria-label="共有リンク">
-        <button id="copy" class="btn" type="button">コピー</button>
+        <input id="url" readonly aria-label="Share link">
+        <button id="copy" class="btn" type="button">Copy</button>
       </div>
       <div class="share-actions">
-        <button id="nshare" class="btn" type="button" hidden>共有…</button>
-        <a id="open" class="btn primary">タイマーを開く</a>
+        <button id="nshare" class="btn" type="button" hidden>Share…</button>
+        <a id="open" class="btn primary">Open timer</a>
       </div>
-      <img id="qr" class="qr" alt="共有リンクのQRコード" width="240" height="240" hidden>
-      <p class="hint">リンク自体にタイムテーブルが入っています（サーバー保存なし）。内容を変更したら、新しいリンクを共有し直してください。</p>
+      <img id="qr" class="qr" alt="QR code for the share link" width="240" height="240" hidden>
+      <p class="hint">The timetable lives inside the link itself — nothing is stored on a server. If you change anything, share the new link again.</p>
     </section>
   </div>`
 
@@ -87,15 +87,15 @@ export function renderEditor(root: HTMLElement, init?: EventData): () => void {
       .map(
         ([s, e, n], i) => `
       <li class="slot" data-i="${i}">
-        <input type="time" class="s" value="${esc(s)}" aria-label="開始">
-        <span class="tilde">〜</span>
-        <input type="time" class="e" value="${esc(e)}" aria-label="終了">
+        <input type="time" class="s" value="${esc(s)}" aria-label="Start">
+        <span class="tilde">–</span>
+        <input type="time" class="e" value="${esc(e)}" aria-label="End">
         <div class="row2">
-        <input class="n" value="${esc(n)}" placeholder="DJ名" maxlength="40" autocomplete="off" aria-label="DJ名">
+        <input class="n" value="${esc(n)}" placeholder="DJ name" maxlength="40" autocomplete="off" aria-label="DJ name">
         <div class="ops">
-          <button type="button" data-op="up" aria-label="上へ" ${i === 0 ? 'disabled' : ''}>↑</button>
-          <button type="button" data-op="down" aria-label="下へ" ${i === ev.s.length - 1 ? 'disabled' : ''}>↓</button>
-          <button type="button" data-op="del" aria-label="削除" ${ev.s.length === 1 ? 'disabled' : ''}>✕</button>
+          <button type="button" data-op="up" aria-label="Move up" ${i === 0 ? 'disabled' : ''}>↑</button>
+          <button type="button" data-op="down" aria-label="Move down" ${i === ev.s.length - 1 ? 'disabled' : ''}>↓</button>
+          <button type="button" data-op="del" aria-label="Delete" ${ev.s.length === 1 ? 'disabled' : ''}>✕</button>
         </div>
         </div>
       </li>`,
@@ -112,18 +112,18 @@ export function renderEditor(root: HTMLElement, init?: EventData): () => void {
     const problems: string[] = []
     const hasDate = /^\d{4}-\d{2}-\d{2}$/.test(ev.d)
     const resolved = resolve(ev)
-    if (!hasDate) problems.push('開催日が未入力です')
-    else if (resolved.length !== ev.s.length) problems.push('開始・終了時刻が未入力の枠があります')
-    if (ev.s.some(([, , n]) => !n.trim())) problems.push('DJ名が未入力の枠があります')
+    if (!hasDate) problems.push('Enter the event date')
+    else if (resolved.length !== ev.s.length) problems.push('Some sets are missing a start or end time')
+    if (ev.s.some(([, , n]) => !n.trim())) problems.push('Some sets are missing a DJ name')
     for (let k = 1; k < resolved.length; k++) {
       const a = resolved[k - 1]
       const b = resolved[k]
-      if (b.start < a.end) problems.push(`${a.name} と ${b.name} の時間が重なっています`)
+      if (b.start < a.end) problems.push(`${a.name} and ${b.name} overlap`)
     }
     if (resolved.length) {
       const first = resolved[0]
       const last = resolved[resolved.length - 1]
-      problems.unshift(`全体: ${fmtHM(first.start)} 〜 ${fmtHM(last.end)}（${resolved.length}枠）`)
+      problems.unshift(`Total: ${fmtHM(first.start)} – ${fmtHM(last.end)} (${resolved.length} ${resolved.length === 1 ? 'set' : 'sets'})`)
     }
     msg.innerHTML = problems
       .map((p, k) => `<li class="${k === 0 && resolved.length ? 'ok' : 'warn'}">${esc(p)}</li>`)
@@ -137,7 +137,7 @@ export function renderEditor(root: HTMLElement, init?: EventData): () => void {
     const token = ++qrToken
     if (!hasDate) {
       urlInput.value = ''
-      urlInput.placeholder = '開催日を入力すると共有リンクができます'
+      urlInput.placeholder = 'Enter the date to create a share link'
       open.removeAttribute('href')
       qr.hidden = true
       return
@@ -209,21 +209,21 @@ export function renderEditor(root: HTMLElement, init?: EventData): () => void {
       urlInput.select()
       document.execCommand('copy')
     }
-    copy.textContent = 'コピーしました'
-    setTimeout(() => (copy.textContent = 'コピー'), 1500)
+    copy.textContent = 'Copied!'
+    setTimeout(() => (copy.textContent = 'Copy'), 1500)
   })
 
   if ('share' in navigator) {
     nshare.hidden = false
     nshare.addEventListener('click', () => {
       navigator
-        .share({ title: ev.t || 'TAITE', text: `${ev.t || 'TAITE'} タイムテーブル`, url: urlInput.value })
+        .share({ title: ev.t || 'TAITE', text: `${ev.t || 'TAITE'} timetable`, url: urlInput.value })
         .catch(() => {})
     })
   }
 
   renderSlots()
   update()
-  document.title = 'TAITE – タイテ作成'
+  document.title = 'TAITE – Create'
   return () => {}
 }

@@ -127,81 +127,99 @@ input:focus-visible, button:focus-visible, a:focus-visible {
 .qr[hidden] { display: none; }
 .hint { color: var(--muted); font-size: 12px; text-align: center; }
 
-/* ---------- タイマー画面 ---------- */
-.v-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-.v-title { font-weight: 700; font-size: 15px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.wake {
-  flex-shrink: 0;
-  border: 1px solid var(--line); border-radius: 999px;
-  min-height: 44px; background: transparent; padding: 0 14px; font-size: 12px; cursor: pointer; color: var(--muted);
-}
-.wake[data-state='on'] { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 40%, transparent); }
-.wake[data-state='na'] { color: var(--w10); }
+/* ---------- タイマー画面（スクロールさせず画面に固定） ---------- */
+body.lock { overflow: hidden; }
 
-.clock {
-  margin: 18px 0 12px;
-  text-align: center;
-  font-family: var(--mono);
-  font-variant-numeric: tabular-nums;
-  font-size: clamp(44px, 16vw, 96px);
-  font-weight: 600;
-  letter-spacing: 0.02em;
-  line-height: 1;
+.view-timer {
+  position: fixed;
+  inset: 0;
+  max-width: 640px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: max(12px, env(safe-area-inset-top)) 16px max(12px, env(safe-area-inset-bottom));
 }
 
-.card {
-  padding: 20px 18px 18px;
+.t-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.who { min-width: 0; display: flex; flex-direction: column; }
+.who-label { font-size: 11px; font-weight: 700; letter-spacing: 0.14em; color: var(--muted); }
+.who-name {
+  font-size: clamp(22px, 7vw, 34px); font-weight: 800; line-height: 1.15;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+.t-meta { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; color: var(--muted); font-size: 13px; }
+.v-title { font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.clock-sm { flex-shrink: 0; font-family: var(--mono); font-variant-numeric: tabular-nums; font-size: 16px; color: var(--text); }
+
+.stage {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 16px;
   border: 2px solid var(--line);
-  border-radius: 20px;
+  border-radius: 24px;
   background: var(--surface);
   text-align: center;
   transition: border-color 0.3s, background-color 0.3s;
 }
-.card-label { font-size: 13px; letter-spacing: 0.12em; color: var(--muted); font-weight: 700; }
-.card-name { font-size: clamp(22px, 7vw, 34px); font-weight: 800; margin-top: 2px; word-break: break-word; }
+.stage-label { font-size: 13px; font-weight: 700; letter-spacing: 0.12em; color: var(--muted); }
 .timer {
   font-family: var(--mono);
   font-variant-numeric: tabular-nums;
-  /* 文字数(--chars)に合わせて横幅いっぱいに収める */
-  font-size: clamp(40px, calc((min(100vw, 640px) - 84px) / (var(--chars, 5) * 0.62)), 180px);
+  /* 文字数(--chars)に合わせて横幅いっぱい。低い画面では高さに合わせて縮める */
+  font-size: clamp(40px, min(calc((min(100vw, 640px) - 84px) / (var(--chars, 5) * 0.62)), 26vh), 180px);
   font-weight: 700;
   line-height: 1.05;
   white-space: nowrap;
-  margin: 6px 0 12px;
 }
-.bar { height: 8px; background: var(--surface-2); border-radius: 99px; overflow: hidden; }
+.stage-sub { min-height: 1.4em; font-size: clamp(15px, 4.5vw, 20px); font-weight: 700; word-break: break-word; }
+.bar { width: 100%; height: 8px; margin-top: 6px; background: var(--surface-2); border-radius: 99px; overflow: hidden; }
 .bar-fill { height: 100%; background: var(--accent); transform-origin: left; transform: scaleX(0); transition: transform 0.25s linear; }
-.card-range { margin-top: 10px; font-family: var(--mono); color: var(--muted); font-size: 14px; }
+.stage-range { font-family: var(--mono); color: var(--muted); font-size: 13px; }
 
-.next { min-height: 1.5em; margin: 12px 4px 0; color: var(--muted); font-family: var(--mono); font-size: 14px; text-align: center; }
+/* アナログ表示: 文字盤を主役にし、数字の残り時間は小さく添える */
+.dial { width: min(100%, 42vh); height: auto; flex-shrink: 1; min-height: 0; }
+.stage.analog .timer { font-size: clamp(32px, min(11vw, 8vh), 64px); }
+.dial-face { fill: var(--surface-2); stroke: var(--line); stroke-width: 1.5; }
+.dial-sector { fill: color-mix(in srgb, var(--accent) 40%, transparent); transition: fill 0.3s; }
+.tick { stroke: var(--muted); stroke-width: 1; }
+.tick.major { stroke: var(--text); stroke-width: 2.5; }
+.hand { stroke-linecap: round; }
+.hand.hour { stroke: var(--text); stroke-width: 6; }
+.hand.min { stroke: var(--text); stroke-width: 4; }
+.hand.sec { stroke: var(--w1); stroke-width: 1.5; }
+.dial-pin { fill: var(--text); }
 
-.mode {
-  display: flex; align-items: center; justify-content: space-between; gap: 10px;
-  margin: 14px 0 0; padding: 8px 8px 8px 14px;
-  border: 1px solid var(--line); border-radius: 12px;
-  font-size: 14px; color: var(--muted);
+.next { min-height: 1.4em; color: var(--muted); font-family: var(--mono); font-size: 14px; text-align: center; }
+
+.t-bottom { display: flex; align-items: center; gap: 8px; }
+.t-bottom .btn { flex: 1; }
+/* スリープ防止は控えめに: 小さな文字だけ */
+.wake {
+  flex-shrink: 0;
+  min-height: 44px;
+  padding: 0 4px;
+  border: 0;
+  background: transparent;
+  font-size: 11px;
+  color: var(--muted);
+  cursor: pointer;
+  white-space: nowrap;
 }
-.mode .who { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.mode b { color: var(--text); font-size: 16px; }
+.wake[data-state='on'] { color: color-mix(in srgb, var(--accent) 70%, var(--muted)); }
+.wake[data-state='na'] { color: var(--muted); opacity: 0.7; }
 
-.list-head { margin: 28px 0 8px; font-size: 13px; color: var(--muted); font-weight: 600; letter-spacing: 0.04em; }
-
-/* ---------- 名前選択 ---------- */
-.picker { padding-top: 8px; }
-.picker h1 { margin: 20px 0 6px; font-size: 30px; }
-.picker p { margin: 0 0 20px; color: var(--muted); font-size: 14px; }
-.pick-list { list-style: none; margin: 0 0 16px; padding: 0; display: grid; gap: 8px; }
-.pick {
-  width: 100%; min-height: 60px;
-  display: flex; align-items: center; justify-content: space-between; gap: 12px;
-  padding: 10px 16px;
-  border: 1px solid var(--line); border-radius: 14px;
-  background: var(--surface); cursor: pointer; text-align: left;
-}
-.pick:active { border-color: var(--accent); }
-.pick .n { font-size: 18px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.pick .t { flex-shrink: 0; font-family: var(--mono); font-variant-numeric: tabular-nums; color: var(--muted); font-size: 14px; }
-[hidden] { display: none !important; }
+/* ---------- タイムテーブル画面 ---------- */
+.view-table { padding-top: 4px; }
+.l-top { display: flex; align-items: center; gap: 12px; color: var(--muted); font-size: 13px; }
+.l-head { margin: 20px 0 10px; font-size: 26px; }
+.l-edit { margin-top: 24px; }
 
 .list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
 .list .row {
@@ -220,39 +238,59 @@ input:focus-visible, button:focus-visible, a:focus-visible {
 .list li.mine .row { background: var(--surface-2); }
 .list li.mine:not(.now) .badge { color: var(--text); }
 
-.v-foot { margin-top: 28px; text-align: center; font-size: 13px; }
-.v-foot a { color: var(--muted); }
-
 .error { text-align: center; padding-top: 20vh; }
 .error p { color: var(--muted); }
 
-/* ---------- 警告レベル ---------- */
-body[data-level='soon'] .card { border-color: var(--accent); }
-body[data-level='soon'] .timer, body[data-level='soon'] .card-label { color: var(--accent); }
+/* ---------- 名前選択 ---------- */
+.picker { padding-top: 8px; }
+.picker h1 { margin: 20px 0 6px; font-size: 30px; }
+.picker p { margin: 0 0 20px; color: var(--muted); font-size: 14px; }
+.pick-list { list-style: none; margin: 0 0 16px; padding: 0; display: grid; gap: 8px; }
+.pick {
+  width: 100%; min-height: 60px;
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 10px 16px;
+  border: 1px solid var(--line); border-radius: 14px;
+  background: var(--surface); cursor: pointer; text-align: left;
+}
+.pick:active { border-color: var(--accent); }
+.pick .n { font-size: 18px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pick .t { flex-shrink: 0; font-family: var(--mono); font-variant-numeric: tabular-nums; color: var(--muted); font-size: 14px; }
+[hidden] { display: none !important; }
 
-body[data-level='w10'] .card { border-color: var(--w10); }
+/* ---------- 警告レベル ---------- */
+body[data-level='soon'] .stage { border-color: var(--accent); }
+body[data-level='soon'] .timer, body[data-level='soon'] .stage-label { color: var(--accent); }
+
+body[data-level='w10'] .stage { border-color: var(--w10); }
 body[data-level='w10'] .timer { color: var(--w10); }
 body[data-level='w10'] .bar-fill { background: var(--w10); }
+body[data-level='w10'] .dial-sector { fill: color-mix(in srgb, var(--w10) 45%, transparent); }
 
-body[data-level='w5'] .card { border-color: var(--w5); background: color-mix(in srgb, var(--w5) 12%, var(--surface)); }
+body[data-level='w5'] .stage { border-color: var(--w5); background: color-mix(in srgb, var(--w5) 12%, var(--surface)); }
 body[data-level='w5'] .timer { color: var(--w5); }
 body[data-level='w5'] .bar-fill { background: var(--w5); }
+body[data-level='w5'] .dial-sector { fill: color-mix(in srgb, var(--w5) 55%, transparent); }
 
 body[data-level='w1'], body[data-level='over'] { animation: flash 1s steps(1, end) infinite; }
-body[data-level='w1'] .card, body[data-level='over'] .card { border-color: var(--w1); background: transparent; }
+body[data-level='w1'] .stage, body[data-level='over'] .stage { border-color: var(--w1); background: transparent; }
 body[data-level='w1'] .timer, body[data-level='over'] .timer { color: #fff; }
 body[data-level='w1'] .bar-fill, body[data-level='over'] .bar-fill { background: #fff; }
+body[data-level='w1'] .dial-sector { fill: color-mix(in srgb, var(--w1) 70%, transparent); }
 body[data-level='over'] { animation-duration: 0.6s; }
-body[data-level='over'] .card { cursor: pointer; }
+body[data-level='over'] .stage { cursor: pointer; }
 
 /* 点滅を止めた後: 赤い文字で超過だけ示す */
-body[data-level='overAck'] .card { border-color: var(--w1); }
-body[data-level='overAck'] .timer, body[data-level='overAck'] .card-label { color: var(--w1); }
+body[data-level='overAck'] .stage { border-color: var(--w1); }
+body[data-level='overAck'] .timer, body[data-level='overAck'] .stage-label { color: var(--w1); }
 body[data-level='overAck'] .bar-fill { background: var(--w1); }
 
-/* 動きを減らす設定の端末では点滅させず、赤の固定表示にする */
+/* 動きを減らす設定の端末では点滅させず、固定表示にする（残り1分と超過は色と枠線で見分ける） */
 @media (prefers-reduced-motion: reduce) {
-  body[data-level='w1'], body[data-level='over'] { animation: none; background-color: #5c050b; }
+  body[data-level='w1'], body[data-level='over'] { animation: none; }
+  body[data-level='w1'] { background-color: #3d0409; }
+  body[data-level='over'] { background-color: #6e0710; }
+  body[data-level='over'] .stage { border-width: 4px; border-color: #fff; }
 }
 
 @keyframes flash {
@@ -260,13 +298,15 @@ body[data-level='overAck'] .bar-fill { background: var(--w1); }
   50% { background-color: var(--bg); }
 }
 
-/* 横向き（ブースに立てかける用） */
+/* 横向き（ブースに立てかける用）: 高さが足りないので、文字盤と数字を横に並べ、補助的な表示を省く */
 @media (orientation: landscape) and (max-height: 520px) {
-  #app { max-width: none; }
-  .viewer { display: grid; grid-template-columns: 1fr 1fr; gap: 0 20px; align-items: start; }
-  .v-head, .mode, .list-head, .list, .v-foot { grid-column: 2; }
-  .clock { grid-column: 1; grid-row: 1; margin-top: 0; font-size: clamp(36px, 10vh, 64px); }
-  .card { grid-column: 1; grid-row: 2 / span 4; }
-  .next { grid-column: 1; }
-  .timer { font-size: min(30vh, calc((50vw - 84px) / (var(--chars, 5) * 0.62))); }
+  .view-timer { max-width: none; gap: 6px; }
+  .who-name { font-size: 22px; }
+  .stage { flex-direction: row; flex-wrap: wrap; align-content: center; column-gap: 24px; row-gap: 4px; padding: 8px 16px; overflow: hidden; }
+  .stage-label, .stage-sub { flex-basis: 100%; }
+  .stage-sub { min-height: 0; font-size: 15px; }
+  .bar, .stage-range, .next { display: none; }
+  .dial { width: auto; height: 36vh; }
+  .timer { font-size: min(28vh, calc((60vw - 84px) / (var(--chars, 5) * 0.62))); }
+  .stage.analog .timer { font-size: min(18vh, 64px); }
 }

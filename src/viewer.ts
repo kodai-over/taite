@@ -2,26 +2,68 @@ import { resolve, type EventData, type ResolvedSlot } from './data'
 import { esc, fmtClock, fmtDur, fmtHM, now, store } from './util'
 import { initWakeLock } from './wakelock'
 
-/** 警告レベル: 出番直前 / 残り10分 / 5分 / 1分 / 超過 */
+/** 警告レベル: 出番直前 / 残り10分 / 5分 / 1分 / 超過 / 超過（点滅停止済み） */
 type Level = '' | 'soon' | 'w10' | 'w5' | 'w1' | 'over' | 'overAck'
+/** 時計の表示方式 */
+type Face = 'digital' | 'analog'
 
 const MIN = 60_000
 const OVER_SHOW_MS = 30 * MIN // 自分のセット終了後、超過表示を続ける時間（延長してプレイ中の場合もあるため長めに。点滅はタップで止められる）
 const SOON_MS = 10 * MIN // 出番の何分前から「まもなく出番」にするか
 /** 「DJではない（全体表示）」を選んだ時の保存値 */
 const ALL = '__all__'
+const FACE_KEY = 'taite:face'
 
 const levelOf = (remain: number): Level =>
   remain <= 1 * MIN ? 'w1' : remain <= 5 * MIN ? 'w5' : remain <= 10 * MIN ? 'w10' : ''
 
+/* ---------- アナログ時計の描画 ---------- */
+// 文字盤は viewBox 0 0 200 200、中心 (100,100)。角度は 12時=0度、時計回り
+
+const polar = (r: number, deg: number): [number, number] => {
+  const a = ((deg - 90) * Math.PI) / 180
+  return [100 + r * Math.cos(a), 100 + r * Math.sin(a)]
+}
+
+const minuteAngle = (t: number) => {
+  const d = new Date(t)
+  return ((d.getMinutes() + d.getSeconds() / 60) / 60) * 360
+}
+const hourAngle = (t: number) => {
+  const d = new Date(t)
+  return (((d.getHours() % 12) + d.getMinutes() / 60) / 12) * 360
+}
+const secondAngle = (t: number) => (new Date(t).getSeconds() / 60) * 360
+
+/** 時刻 from から長さ ms 分の扇形（60分を一周として描く。60分以上は円全体） */
+function sectorPath(from: number, ms: number, r = 70): string {
+  if (ms <= 0) return ''
+  if (ms >= 60 * MIN) return `M 100 ${100 - r} A ${r} ${r} 0 1 1 100 ${100 + r} A ${r} ${r} 0 1 1 100 ${100 - r} Z`
+  const a0 = minuteAngle(from)
+  const span = (ms / (60 * MIN)) * 360
+  const [x0, y0] = polar(r, a0)
+  const [x1, y1] = polar(r, a0 + span)
+  return `M 100 100 L ${x0.toFixed(2)} ${y0.toFixed(2)} A ${r} ${r} 0 ${span > 180 ? 1 : 0} 1 ${x1.toFixed(2)} ${y1.toFixed(2)} Z`
+}
+
+const dialTicks = Array.from({ length: 60 }, (_, i) => {
+  const major = i % 5 === 0
+  const [x0, y0] = polar(90, i * 6)
+  const [x1, y1] = polar(major ? 79 : 85, i * 6)
+  return `<line class="${major ? 'tick major' : 'tick'}" x1="${x0.toFixed(2)}" y1="${y0.toFixed(2)}" x2="${x1.toFixed(2)}" y2="${y1.toFixed(2)}"/>`
+}).join('')
+
 export function renderViewer(root: HTMLElement, ev: EventData, payload: string): () => void {
   const slots = resolve(ev)
+  const title = esc(ev.t || 'TAITE')
   const meKey = `taite:me:${ev.d}:${ev.t}`
   const saved = store.get(meKey)
   // null = まだ選んでいない（名前選択画面を出す）, ALL = 全体表示, それ以外 = DJ名
   let me: string | null = saved === ALL || slots.some((s) => s.name === saved) ? saved : null
   // 枠が1つもない（壊れたリンク等）なら名前選択を飛ばし、全体表示でエラー文言を出す
   if (!slots.length) me = ALL
+  let face: Face = store.get(FACE_KEY) === 'analog' ? 'analog' : 'digital'
+  let showTable = false
 
   // DJ名ごとの出番時刻（同じDJが複数枠ある場合はまとめる）
   const djs = [...new Set(slots.map((s) => s.name))].map((name) => ({
@@ -34,9 +76,9 @@ export function renderViewer(root: HTMLElement, ev: EventData, payload: string):
 
   root.innerHTML = `
   <section id="picker" class="picker" hidden>
-    <div class="v-title">${esc(ev.t || 'TAITE')}</div>
-    <h1>あなたは誰？</h1>
-    <p>自分の名前を選ぶと、出番までの時間とセットの残り時間を表示します。</p>
+    <div class="v-title">${title}</div>
+    <h1>Who are you?</h1>
+    <p>Pick your name to see the time until your set and the time left in it.</p>
     <ul class="pick-list">
       ${djs
         .map(
@@ -47,30 +89,55 @@ export function renderViewer(root: HTMLElement, ev: EventData, payload: string):
         )
         .join('')}
     </ul>
-    <button type="button" id="pick-all" class="btn ghost wide">DJではない（全体のタイムテーブルを見る）</button>
+    <button type="button" id="pick-all" class="btn ghost wide">I'm not a DJ — show the full timetable</button>
   </section>
 
-  <div id="main" class="viewer" hidden>
-    <header class="v-head">
-      <div class="v-title">${esc(ev.t || 'TAITE')}</div>
-      <button id="wake" class="wake" type="button"></button>
+  <div id="view-timer" class="view-timer" hidden>
+    <header class="t-top">
+      <div class="who">
+        <span id="who-label" class="who-label"></span>
+        <span id="who-name" class="who-name"></span>
+      </div>
+      <button type="button" id="change" class="btn small ghost">Change</button>
     </header>
 
-    <div id="mode" class="mode"></div>
+    <div class="t-meta">
+      <span class="v-title">${title}</span>
+      <span id="clock" class="clock-sm" aria-label="Current time">--:--:--</span>
+    </div>
 
-    <div id="clock" class="clock" aria-label="現在時刻">--:--:--</div>
-
-    <section id="card" class="card" aria-live="polite">
-      <div id="label" class="card-label"></div>
-      <div id="name" class="card-name"></div>
+    <section id="stage" class="stage" aria-live="polite">
+      <div id="label" class="stage-label"></div>
+      <svg id="dial" class="dial" viewBox="0 0 200 200" aria-hidden="true">
+        <circle class="dial-face" cx="100" cy="100" r="96"/>
+        <path id="sector" class="dial-sector" d=""/>
+        ${dialTicks}
+        <line id="hand-h" class="hand hour" x1="100" y1="100" x2="100" y2="54"/>
+        <line id="hand-m" class="hand min" x1="100" y1="100" x2="100" y2="26"/>
+        <line id="hand-s" class="hand sec" x1="100" y1="114" x2="100" y2="20"/>
+        <circle class="dial-pin" cx="100" cy="100" r="4"/>
+      </svg>
       <div id="timer" class="timer">--:--</div>
+      <div id="sub" class="stage-sub"></div>
       <div class="bar"><div id="bar" class="bar-fill"></div></div>
-      <div id="range" class="card-range"></div>
+      <div id="range" class="stage-range"></div>
     </section>
 
     <div id="next" class="next"></div>
 
-    <h2 class="list-head">タイムテーブル</h2>
+    <footer class="t-bottom">
+      <button type="button" id="to-table" class="btn">Timetable</button>
+      <button type="button" id="face" class="btn"></button>
+      <button type="button" id="wake" class="wake"></button>
+    </footer>
+  </div>
+
+  <div id="view-table" class="view-table" hidden>
+    <header class="l-top">
+      <button type="button" id="back" class="btn small">← Timer</button>
+      <span class="v-title">${title}</span>
+    </header>
+    <h1 class="l-head">Timetable</h1>
     <ol id="list" class="list">
       ${slots
         .map(
@@ -85,41 +152,55 @@ export function renderViewer(root: HTMLElement, ev: EventData, payload: string):
         )
         .join('')}
     </ol>
-
-    <footer class="v-foot">
-      <a href="#e.${payload}">このタイムテーブルを編集・複製</a>
-    </footer>
+    <a class="btn wide l-edit" href="#e.${payload}">Edit / duplicate this timetable</a>
   </div>`
 
-  const $ = <T extends HTMLElement>(id: string) => root.querySelector<T>('#' + id)!
+  const $ = <T extends Element = HTMLElement>(id: string) => root.querySelector<T>('#' + id)!
   const clock = $('clock')
   const label = $('label')
-  const nameEl = $('name')
+  const sub = $('sub')
   const timer = $('timer')
   const bar = $('bar')
   const range = $('range')
   const next = $('next')
-  const mode = $('mode')
+  const whoLabel = $('who-label')
+  const whoName = $('who-name')
+  const change = $<HTMLButtonElement>('change')
+  const stage = $('stage')
+  const dial = $<SVGSVGElement>('dial')
+  const sector = $<SVGPathElement>('sector')
+  const handH = $<SVGLineElement>('hand-h')
+  const handM = $<SVGLineElement>('hand-m')
+  const handS = $<SVGLineElement>('hand-s')
+  const faceBtn = $<HTMLButtonElement>('face')
   const list = $<HTMLOListElement>('list')
   const items = [...list.querySelectorAll<HTMLLIElement>('li')]
   const picker = $('picker')
-  const main = $('main')
+  const viewTimer = $('view-timer')
+  const viewTable = $('view-table')
 
   const isDj = () => me !== null && me !== ALL
 
-  const renderMode = () => {
+  /** 表示する画面（名前選択 / タイマー / タイムテーブル）を切り替える */
+  const renderView = () => {
     picker.hidden = me !== null
-    main.hidden = me === null
-    mode.innerHTML = isDj()
-      ? `<span class="who"><b>${esc(me!)}</b></span><button type="button" id="change" class="btn small">変更</button>`
-      : `<span class="who">全体表示</span><button type="button" id="change" class="btn small">自分の名前を選ぶ</button>`
-    mode.querySelector('#change')!.addEventListener('click', () => setMe(null))
+    viewTimer.hidden = me === null || showTable
+    viewTable.hidden = me === null || !showTable
+    // タイマー画面はスクロールさせず画面に固定する
+    document.body.classList.toggle('lock', !viewTimer.hidden)
+    whoLabel.textContent = isDj() ? 'DJ' : 'FULL TIMETABLE'
+    whoName.textContent = isDj() ? me! : 'Everyone'
+    change.textContent = isDj() ? 'Change' : 'Pick my name'
+    faceBtn.textContent = face === 'analog' ? 'Digital' : 'Analog'
+    faceBtn.setAttribute('aria-label', face === 'analog' ? 'Switch to digital display' : 'Switch to analog display')
+    stage.classList.toggle('analog', face === 'analog')
+    dial.style.display = face === 'analog' ? '' : 'none'
   }
 
   const setMe = (name: string | null) => {
     me = name
     store.set(meKey, name)
-    renderMode()
+    renderView()
     tick()
     window.scrollTo({ top: 0 })
   }
@@ -129,18 +210,39 @@ export function renderViewer(root: HTMLElement, ev: EventData, payload: string):
     if (b) setMe(b.dataset.name!)
   })
   $('pick-all').addEventListener('click', () => setMe(ALL))
+  change.addEventListener('click', () => setMe(null))
 
-  // 一覧は表示のみ。暗いブースでの誤タップで他のDJに切り替わらないよう、切り替えは「変更」ボタンからだけにする
+  faceBtn.addEventListener('click', () => {
+    face = face === 'analog' ? 'digital' : 'analog'
+    store.set(FACE_KEY, face)
+    renderView()
+    tick()
+  })
+
+  // タイムテーブル画面は履歴に積み、端末の「戻る」でもタイマーに戻れるようにする
+  $('to-table').addEventListener('click', () => {
+    history.pushState({ taite: 'table' }, '')
+    showTable = true
+    renderView()
+    window.scrollTo({ top: 0 })
+  })
+  $('back').addEventListener('click', () => history.back())
+  const onPop = (e: PopStateEvent) => {
+    showTable = (e.state as { taite?: string } | null)?.taite === 'table'
+    renderView()
+  }
+  window.addEventListener('popstate', onPop)
+
+  // 一覧は表示のみ。暗いブースでの誤タップで他のDJに切り替わらないよう、切り替えは「Change」ボタンからだけにする
 
   let lastLevel: Level = ''
   /** 超過の点滅をタップで止めた枠（同じ枠の間は点滅させない） */
   const ackKey = `${meKey}:ack`
-  const savedAck = store.get(ackKey)
   // 枠は番号ではなく内容で識別する（タイムテーブルを直して並びが変わっても別の枠と取り違えないように）
   const slotId = (s: ResolvedSlot) => `${s.name}@${s.start}-${s.end}`
-  let ackedSlot: string | null = savedAck
+  let ackedSlot: string | null = store.get(ackKey)
   let overSlot: string | null = null
-  $('card').addEventListener('click', () => {
+  stage.addEventListener('click', () => {
     if (overSlot !== null) {
       ackedSlot = overSlot
       store.set(ackKey, overSlot) // 再読み込みしても点滅を再開しない
@@ -150,20 +252,23 @@ export function renderViewer(root: HTMLElement, ev: EventData, payload: string):
 
   const show = (o: {
     label: string
-    name: string
+    sub: string
     timer: string
     progress: number
     range: string
     next: string
     level: Level
+    /** アナログ時計に重ねる扇形（この時刻から、この長さ） */
+    sector?: { from: number; ms: number }
   }) => {
     label.textContent = o.label
-    nameEl.textContent = o.name
+    sub.textContent = o.sub
     timer.textContent = o.timer
     timer.style.setProperty('--chars', String(o.timer.length))
     bar.style.transform = `scaleX(${Math.min(1, Math.max(0, o.progress))})`
     range.textContent = o.range
     next.textContent = o.next
+    sector.setAttribute('d', o.sector ? sectorPath(o.sector.from, o.sector.ms) : '')
     document.body.dataset.level = o.level
     const canVibrate = navigator.userActivation?.hasBeenActive ?? true // 未タップ時はブラウザが拒否する
     if (canVibrate && o.level !== lastLevel && ['soon', 'w5', 'w1', 'over'].includes(o.level)) {
@@ -173,11 +278,17 @@ export function renderViewer(root: HTMLElement, ev: EventData, payload: string):
   }
 
   const nextAfter = (s: ResolvedSlot): ResolvedSlot | undefined => slots.find((x) => x.start >= s.end && x !== s)
-  const nextLine = (s: ResolvedSlot | undefined) => (s ? `NEXT  ${fmtHM(s.start)}〜  ${s.name}` : '')
+  const nextLine = (s: ResolvedSlot | undefined) => (s ? `Next  ${fmtHM(s.start)}  ${s.name}` : '')
+  const rangeOf = (s: ResolvedSlot) => `${fmtHM(s.start)} – ${fmtHM(s.end)}`
 
   const tick = () => {
     const t = now()
     clock.textContent = fmtClock(t)
+    if (face === 'analog') {
+      handH.setAttribute('transform', `rotate(${hourAngle(t)} 100 100)`)
+      handM.setAttribute('transform', `rotate(${minuteAngle(t)} 100 100)`)
+      handS.setAttribute('transform', `rotate(${secondAngle(t)} 100 100)`)
+    }
 
     let cur: ResolvedSlot | undefined
     for (const s of slots) if (s.start <= t && t < s.end) cur = s
@@ -192,7 +303,7 @@ export function renderViewer(root: HTMLElement, ev: EventData, payload: string):
     })
 
     if (!slots.length) {
-      show({ label: 'タイムテーブルがありません', name: '', timer: '--:--', progress: 0, range: '', next: '', level: '' })
+      show({ label: 'NO TIMETABLE', sub: 'This link has no sets.', timer: '--:--', progress: 0, range: '', next: '', level: '' })
       return
     }
 
@@ -211,45 +322,47 @@ export function renderViewer(root: HTMLElement, ev: EventData, payload: string):
       const prev = mine.filter((s) => s.end <= t).pop()
       if (prev && t - prev.end < OVER_SHOW_MS && target.start - t > SOON_MS) target = prev
       overSlot = null
-      const rangeText = `${fmtHM(target.start)} 〜 ${fmtHM(target.end)}`
       if (t < target.start) {
         const wait = target.start - t
         show({
-          label: wait <= SOON_MS ? 'まもなく出番' : '出番まで',
-          name: `出番 ${rangeText}`,
+          label: wait <= SOON_MS ? "YOU'RE ON SOON" : 'YOUR SET STARTS IN',
+          sub: cur ? `Now playing: ${cur.name} (${fmtDur(cur.end - t)} left)` : '',
           timer: fmtDur(wait),
           progress: 0,
-          range: `セット ${Math.round((target.end - target.start) / MIN)}分`,
-          next: cur ? `いまプレイ中: ${cur.name}（残り ${fmtDur(cur.end - t)}）` : '',
+          range: `Your set ${rangeOf(target)} · ${Math.round((target.end - target.start) / MIN)} min`,
+          next: '',
           level: wait <= SOON_MS ? 'soon' : '',
+          sector: { from: t, ms: wait },
         })
       } else if (t < target.end) {
         const remain = target.end - t
+        const following = nextAfter(target)
         show({
-          label: '残り時間',
-          name: 'ON AIR',
+          label: 'TIME LEFT',
+          sub: 'ON AIR',
           timer: fmtDur(remain),
           progress: (t - target.start) / (target.end - target.start),
-          range: rangeText,
-          next: nextLine(nextAfter(target)),
+          range: `Your set ${rangeOf(target)}`,
+          next: nextLine(following),
           level: levelOf(remain),
+          sector: { from: t, ms: remain },
         })
       } else if (t - target.end < OVER_SHOW_MS) {
         overSlot = slotId(target)
         const acked = ackedSlot === overSlot
         const following = nextAfter(target)
         show({
-          label: acked ? '終了時刻を超過' : '終了時刻を超過（タップで点滅を止める）',
+          label: acked ? 'OVERTIME' : 'OVERTIME · TAP TO STOP FLASHING',
           // 実際に交代したかはアプリから分からないので、促すのではなく状況を伝える
-          name: following ? `次は ${following.name}` : '最後のセットです',
+          sub: following ? `Next: ${following.name}` : 'Last set of the night',
           timer: '+' + fmtDur(t - target.end),
           progress: 1,
-          range: rangeText,
+          range: `Your set ${rangeOf(target)}`,
           next: '',
           level: acked ? 'overAck' : 'over',
         })
       } else {
-        show({ label: 'セット終了', name: 'お疲れさまでした', timer: '--:--', progress: 1, range: rangeText, next: '', level: '' })
+        show({ label: 'SET COMPLETE', sub: 'Great set!', timer: '--:--', progress: 1, range: `Your set ${rangeOf(target)}`, next: '', level: '' })
       }
       return
     }
@@ -259,38 +372,42 @@ export function renderViewer(root: HTMLElement, ev: EventData, payload: string):
       const remain = cur.end - t
       show({
         label: 'NOW PLAYING',
-        name: cur.name,
+        sub: cur.name,
         timer: fmtDur(remain),
         progress: (t - cur.start) / (cur.end - cur.start),
-        range: `${fmtHM(cur.start)} 〜 ${fmtHM(cur.end)}`,
+        range: rangeOf(cur),
         next: nextLine(nextAfter(cur)),
         level: levelOf(remain),
+        sector: { from: t, ms: remain },
       })
     } else if (upcoming) {
       show({
-        label: upcoming === slots[0] ? 'スタートまで' : '次の出番まで',
-        name: upcoming.name,
+        label: upcoming === slots[0] ? 'STARTS IN' : 'NEXT SET IN',
+        sub: upcoming.name,
         timer: fmtDur(upcoming.start - t),
         progress: 0,
-        range: `${fmtHM(upcoming.start)} 〜 ${fmtHM(upcoming.end)}`,
+        range: rangeOf(upcoming),
         next: '',
         level: '',
+        sector: { from: t, ms: upcoming.start - t },
       })
     } else {
-      show({ label: 'イベント終了', name: 'Thank you!', timer: '--:--', progress: 1, range: '', next: '', level: '' })
+      show({ label: 'EVENT OVER', sub: 'Thank you!', timer: '--:--', progress: 1, range: '', next: '', level: '' })
     }
   }
 
-  renderMode()
+  renderView()
   tick()
   // 秒の切り替わりに合わせて更新
   const timerId = setInterval(tick, 250)
   const disposeWake = initWakeLock($<HTMLButtonElement>('wake'))
-  document.title = `${ev.t || 'TAITE'} – タイマー`
+  document.title = `${ev.t || 'TAITE'} – Timer`
 
   return () => {
     clearInterval(timerId)
     disposeWake()
+    window.removeEventListener('popstate', onPop)
+    document.body.classList.remove('lock')
     delete document.body.dataset.level
   }
 }

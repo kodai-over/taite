@@ -23,9 +23,9 @@ function route() {
       dispose = renderViewer(app, ev, h)
       return
     }
-    app.innerHTML = `<div class="error"><h1>リンクを読み込めませんでした</h1>
-      <p>URLが途中で切れている可能性があります。共有元にもう一度リンクを送ってもらってください。</p>
-      <a class="btn primary" href="#">新しく作成する</a></div>`
+    app.innerHTML = `<div class="error"><h1>Couldn't open this link</h1>
+      <p>The URL may have been cut off. Ask the organizer to send the link again.</p>
+      <a class="btn primary" href="#">Create a new timetable</a></div>`
     dispose = () => {}
     return
   }

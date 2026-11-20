@@ -9,7 +9,13 @@ let dispose: () => void = () => {}
 function route() {
   dispose()
   window.scrollTo(0, 0)
-  const h = decodeURIComponent(location.hash.slice(1))
+  const raw = location.hash.slice(1)
+  let h = raw
+  try {
+    h = decodeURIComponent(raw)
+  } catch {
+    // % の並びが壊れたリンク。そのまま読み込みを試し、読めなければエラー画面にする
+  }
 
   if (h.startsWith('v1.')) {
     const ev = decode(h)

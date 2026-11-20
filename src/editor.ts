@@ -1,5 +1,5 @@
 import QRCode from 'qrcode'
-import { encode, fromMin, resolve, toMin, type EventData, type Slot } from './data'
+import { encode, fromMin, normalize, resolve, toMin, type EventData, type Slot } from './data'
 import { esc, fmtHM, store, todayISO } from './util'
 
 const DRAFT_KEY = 'taite:draft'
@@ -16,8 +16,7 @@ function loadDraft(): EventData | null {
   const raw = store.get(DRAFT_KEY)
   if (!raw) return null
   try {
-    const o = JSON.parse(raw) as EventData
-    return o?.v === 1 && Array.isArray(o.s) ? o : null
+    return normalize(JSON.parse(raw))
   } catch {
     return null
   }
@@ -27,7 +26,13 @@ export const shareUrl = (ev: EventData): string =>
   `${location.origin}${location.pathname}#${encode(ev)}`
 
 export function renderEditor(root: HTMLElement, init?: EventData): () => void {
-  const ev: EventData = init ?? loadDraft() ?? defaultEvent()
+  const draft = loadDraft()
+  let ev: EventData = init ?? draft ?? defaultEvent()
+  // 編集リンクを開いた時、作成中の別の下書きがあれば黙って上書きせずに確認する
+  if (init && draft && JSON.stringify(draft.s) !== JSON.stringify(init.s) && draft.s.some(([, , n]) => n.trim())) {
+    const label = draft.t || '名前なしのタイテ'
+    if (!confirm(`作成中の下書き「${label}」を、このリンクの内容で置き換えますか？\n（キャンセルすると下書きを開きます）`)) ev = draft
+  }
   ev.z = new Date().getTimezoneOffset()
 
   root.innerHTML = `

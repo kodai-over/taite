@@ -62,7 +62,6 @@ export function renderViewer(root: HTMLElement, ev: EventData, payload: string):
   <div id="view-timer" class="view-timer" hidden>
     <header class="t-top">
       <div class="who">
-        <span id="who-label" class="who-label"></span>
         <span id="who-name" class="who-name"></span>
       </div>
       <button type="button" id="change" class="btn small ghost">Change</button>
@@ -79,6 +78,10 @@ export function renderViewer(root: HTMLElement, ev: EventData, payload: string):
         <div class="ns-cell">
           <span id="set-label" class="ns-label">SET</span>
           <span id="set" class="ns-value">--:-- – --:--</span>
+        </div>
+        <div id="np-row" class="np-row">
+          <span class="ns-label">NOW PLAYING</span>
+          <span id="np" class="np-value">—</span>
         </div>
       </div>
       <div id="label" class="stage-label"></div>
@@ -127,8 +130,9 @@ export function renderViewer(root: HTMLElement, ev: EventData, payload: string):
   const setLabel = $('set-label')
   const setEl = $('set')
   const next = $('next')
-  const whoLabel = $('who-label')
   const whoName = $('who-name')
+  const npRow = $('np-row')
+  const np = $('np')
   const change = $<HTMLButtonElement>('change')
   const stage = $('stage')
   const list = $<HTMLOListElement>('list')
@@ -146,8 +150,9 @@ export function renderViewer(root: HTMLElement, ev: EventData, payload: string):
     viewTable.hidden = me === null || !showTable
     // タイマー画面はスクロールさせず画面に固定する
     document.body.classList.toggle('lock', !viewTimer.hidden)
-    whoLabel.textContent = isDj() ? 'DJ' : 'FULL TIMETABLE'
-    whoName.textContent = isDj() ? me! : 'Everyone'
+    whoName.textContent = isDj() ? me! : 'Full timetable'
+    // 全体表示では中央がそのまま NOW PLAYING なので、この行は出さない
+    npRow.hidden = !isDj()
     change.textContent = isDj() ? 'Change' : 'Pick my name'
     setLabel.textContent = isDj() ? 'YOUR SET' : 'SET'
   }
@@ -234,6 +239,13 @@ export function renderViewer(root: HTMLElement, ev: EventData, payload: string):
     for (const s of slots) if (s.start <= t && t < s.end) cur = s
     const upcoming = slots.find((s) => s.start > t)
 
+    // NOW PLAYING 行: 今プレイ中のDJと、その終了時刻（= 次の人が交代する時刻）
+    np.textContent = cur
+      ? `${cur.name}${isDj() && cur.name === me ? ' (you)' : ''} · until ${fmtHM(cur.end)}`
+      : upcoming
+        ? `— · ${upcoming === slots[0] ? 'first' : 'next'} set at ${fmtHM(upcoming.start)}`
+        : '—'
+
     items.forEach((li, k) => {
       const s = slots[k]
       li.classList.toggle('past', s.end <= t)
@@ -266,7 +278,7 @@ export function renderViewer(root: HTMLElement, ev: EventData, payload: string):
         const wait = target.start - t
         show({
           label: wait <= SOON_MS ? "YOU'RE ON SOON" : 'YOUR SET STARTS IN',
-          sub: cur ? `Now playing: ${cur.name} (${fmtDur(cur.end - t)} left)` : '',
+          sub: `${Math.round((target.end - target.start) / MIN)} min set`,
           timer: fmtDur(wait),
           progress: 0,
           set: rangeOf(target),

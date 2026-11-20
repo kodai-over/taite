@@ -21,6 +21,7 @@ npm run build    # dist/ に出力
 - タイマー画面（スクロールしない固定レイアウト）
   - 上部に自分のDJ名と「Change」、イベント名
   - 中央の上段に現在時刻（NOW）と自分のセット時間（YOUR SET）を横並び
+  - その下に NOW PLAYING（今プレイ中のDJと終了時刻。自分の番は「(you)」）
   - その下に出番までの時間 → 残り時間 → 超過時間を大きく表示（10分前から「YOU'RE ON SOON」）
   - 下部に「Timetable」と控えめなスリープ防止表示
 - タイムテーブル画面: 一覧（NOW / YOU 表示）と「Edit / duplicate this timetable」ボタン。端末の「戻る」でタイマーへ戻る

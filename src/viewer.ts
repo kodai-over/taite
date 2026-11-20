@@ -184,7 +184,12 @@ export function renderViewer(root: HTMLElement, ev: EventData, payload: string):
       return
     }
 
-    if (me === null) return // 名前選択中
+    if (me === null) {
+      // 名前選択中は警告表示を解除
+      delete document.body.dataset.level
+      lastLevel = ''
+      return
+    }
 
     if (isDj()) {
       const mine = slots.filter((s) => s.name === me)

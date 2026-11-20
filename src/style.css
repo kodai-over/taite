@@ -173,7 +173,7 @@ a { text-decoration: none; }
 .list li { border-bottom: 1px solid var(--line); }
 .list .row {
   width: 100%;
-  display: grid; grid-template-columns: 7.5em minmax(0, 1fr) auto; align-items: center; gap: 12px;
+  display: grid; grid-template-columns: 7.5em minmax(0, 1fr); align-items: center; gap: 12px;
   min-height: 58px; padding: 8px 6px; border: 0;
   background: transparent; text-align: left;
   -webkit-user-select: none; user-select: none; -webkit-touch-callout: none;
@@ -181,11 +181,9 @@ a { text-decoration: none; }
 .list .row:active { background: var(--raised); }
 .li-time { font-size: 16px; color: var(--dim); }
 .li-name { font-size: 18px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.li-mark { font-size: 13px; font-weight: 600; white-space: nowrap; }
 .list li.past .row { opacity: 0.4; }
-.list li.now .li-time, .list li.now .li-mark { color: var(--onair); }
+.list li.now .li-time { color: var(--onair); }
 .list li.mine .li-name { text-decoration: underline; text-underline-offset: 4px; text-decoration-thickness: 2px; }
-.list li.mine:not(.now) .li-mark { color: var(--ink); }
 
 /* ==========================================================================
    状態ごとの色（--sig）と点滅

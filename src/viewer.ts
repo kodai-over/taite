@@ -46,10 +46,10 @@ export function renderViewer(root: HTMLElement, ev: EventData, payload: string):
       <div id="stage" class="display" aria-live="polite">
         <div class="readouts">
           <div class="ro"><span class="lbl">Time</span><span id="clock" class="ro-v">--:--:--</span></div>
-          <div class="ro"><span class="lbl">Your set</span><span id="set" class="ro-v">--:--–--:--</span></div>
+          <div class="ro"><span class="lbl">Your Set</span><span id="set" class="ro-v">--:--–--:--</span></div>
         </div>
         <dl class="lineup">
-          <dt class="lbl">Now playing</dt>
+          <dt class="lbl">Now Playing</dt>
           <dd id="np" class="lu-name">—</dd>
           <dd id="np-time" class="lu-time"></dd>
           <dt class="lbl">Next</dt>
@@ -79,7 +79,6 @@ export function renderViewer(root: HTMLElement, ev: EventData, payload: string):
             <button type="button" class="row" data-name="${esc(s.name)}">
               <span class="li-time">${fmtHM(s.start)}–${fmtHM(s.end)}</span>
               <span class="li-name">${esc(s.name)}</span>
-              <span class="li-mark" aria-hidden="true"></span>
             </button>
           </li>`,
           )
@@ -212,11 +211,10 @@ export function renderViewer(root: HTMLElement, ev: EventData, payload: string):
       li.classList.toggle('past', s.end <= t)
       li.classList.toggle('now', s === cur)
       li.classList.toggle('mine', me !== null && s.name === me)
-      li.querySelector('.li-mark')!.textContent = s === cur ? 'Now' : me !== null && s.name === me ? 'You' : ''
     })
 
     if (!slots.length) {
-      show({ label: 'No sets', sub: 'This link has no sets', timer: '--:--', progress: 0, set: '--:--–--:--', level: '' })
+      show({ label: 'No Sets', sub: 'This link has no sets', timer: '--:--', progress: 0, set: '--:--–--:--', level: '' })
       return
     }
 
@@ -247,7 +245,7 @@ export function renderViewer(root: HTMLElement, ev: EventData, payload: string):
       } else if (t < target.end) {
         const remain = target.end - t
         show({
-          label: 'On air',
+          label: 'On Air',
           sub: '',
           timer: fmtDur(remain),
           progress: (t - target.start) / (target.end - target.start),
@@ -268,7 +266,7 @@ export function renderViewer(root: HTMLElement, ev: EventData, payload: string):
           level: acked ? 'overAck' : 'over',
         })
       } else {
-        show({ label: 'Off air', sub: '', timer: '--:--', progress: 1, set: rangeOf(target), level: '' })
+        show({ label: 'Off Air', sub: '', timer: '--:--', progress: 1, set: rangeOf(target), level: '' })
       }
       return
     }

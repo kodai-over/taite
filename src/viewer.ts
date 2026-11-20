@@ -267,6 +267,11 @@ export function renderViewer(root: HTMLElement, ev: EventData, payload: string):
 
   }
 
+  // タイマーから開いた時も、端末の「戻る」で一覧に戻れるよう、一覧の上にタイマーを積んだ履歴にする
+  if (view === 'timer' && (history.state as { taite?: string } | null)?.taite !== 'timer') {
+    history.replaceState({ taite: 'table' }, '')
+    history.pushState({ taite: 'timer' }, '')
+  }
   renderView()
   tick()
   // 秒の切り替わりに合わせて更新

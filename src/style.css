@@ -149,9 +149,8 @@ body.lock { overflow: hidden; }
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 
-.t-meta { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; color: var(--muted); font-size: 13px; }
+.t-meta { display: flex; color: var(--muted); font-size: 13px; min-width: 0; }
 .v-title { font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.clock-sm { flex-shrink: 0; font-family: var(--mono); font-variant-numeric: tabular-nums; font-size: 16px; color: var(--text); }
 
 .stage {
   flex: 1;
@@ -168,6 +167,24 @@ body.lock { overflow: hidden; }
   text-align: center;
   transition: border-color 0.3s, background-color 0.3s;
 }
+/* 現在時刻と set time を横に並べる */
+.now-set {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  margin-bottom: auto;
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 12px;
+}
+.ns-cell { display: flex; flex-direction: column; align-items: center; gap: 2px; min-width: 0; }
+.ns-cell + .ns-cell { border-left: 1px solid var(--line); }
+.ns-label { font-size: 11px; font-weight: 700; letter-spacing: 0.14em; color: var(--muted); }
+.ns-value {
+  font-family: var(--mono); font-variant-numeric: tabular-nums; font-weight: 700;
+  font-size: clamp(16px, 4.6vw, 26px); white-space: nowrap;
+}
+.stage > .bar { margin-bottom: auto; }
+
 .stage-label { font-size: 13px; font-weight: 700; letter-spacing: 0.12em; color: var(--muted); }
 .timer {
   font-family: var(--mono);
@@ -181,20 +198,6 @@ body.lock { overflow: hidden; }
 .stage-sub { min-height: 1.4em; font-size: clamp(15px, 4.5vw, 20px); font-weight: 700; word-break: break-word; }
 .bar { width: 100%; height: 8px; margin-top: 6px; background: var(--surface-2); border-radius: 99px; overflow: hidden; }
 .bar-fill { height: 100%; background: var(--accent); transform-origin: left; transform: scaleX(0); transition: transform 0.25s linear; }
-.stage-range { font-family: var(--mono); color: var(--muted); font-size: 13px; }
-
-/* アナログ表示: 文字盤を主役にし、数字の残り時間は小さく添える */
-.dial { width: min(100%, 42vh); height: auto; flex-shrink: 1; min-height: 0; }
-.stage.analog .timer { font-size: clamp(32px, min(11vw, 8vh), 64px); }
-.dial-face { fill: var(--surface-2); stroke: var(--line); stroke-width: 1.5; }
-.dial-sector { fill: color-mix(in srgb, var(--accent) 40%, transparent); transition: fill 0.3s; }
-.tick { stroke: var(--muted); stroke-width: 1; }
-.tick.major { stroke: var(--text); stroke-width: 2.5; }
-.hand { stroke-linecap: round; }
-.hand.hour { stroke: var(--text); stroke-width: 6; }
-.hand.min { stroke: var(--text); stroke-width: 4; }
-.hand.sec { stroke: var(--w1); stroke-width: 1.5; }
-.dial-pin { fill: var(--text); }
 
 .next { min-height: 1.4em; color: var(--muted); font-family: var(--mono); font-size: 14px; text-align: center; }
 
@@ -265,18 +268,15 @@ body[data-level='soon'] .timer, body[data-level='soon'] .stage-label { color: va
 body[data-level='w10'] .stage { border-color: var(--w10); }
 body[data-level='w10'] .timer { color: var(--w10); }
 body[data-level='w10'] .bar-fill { background: var(--w10); }
-body[data-level='w10'] .dial-sector { fill: color-mix(in srgb, var(--w10) 45%, transparent); }
 
 body[data-level='w5'] .stage { border-color: var(--w5); background: color-mix(in srgb, var(--w5) 12%, var(--surface)); }
 body[data-level='w5'] .timer { color: var(--w5); }
 body[data-level='w5'] .bar-fill { background: var(--w5); }
-body[data-level='w5'] .dial-sector { fill: color-mix(in srgb, var(--w5) 55%, transparent); }
 
 body[data-level='w1'], body[data-level='over'] { animation: flash 1s steps(1, end) infinite; }
 body[data-level='w1'] .stage, body[data-level='over'] .stage { border-color: var(--w1); background: transparent; }
 body[data-level='w1'] .timer, body[data-level='over'] .timer { color: #fff; }
 body[data-level='w1'] .bar-fill, body[data-level='over'] .bar-fill { background: #fff; }
-body[data-level='w1'] .dial-sector { fill: color-mix(in srgb, var(--w1) 70%, transparent); }
 body[data-level='over'] { animation-duration: 0.6s; }
 body[data-level='over'] .stage { cursor: pointer; }
 
@@ -298,15 +298,16 @@ body[data-level='overAck'] .bar-fill { background: var(--w1); }
   50% { background-color: var(--bg); }
 }
 
-/* 横向き（ブースに立てかける用）: 高さが足りないので、文字盤と数字を横に並べ、補助的な表示を省く */
+/* 横向き（ブースに立てかける用）: 高さが足りないので補助的な表示を省き、NOW / SET を数字の左に縦に並べる */
 @media (orientation: landscape) and (max-height: 520px) {
   .view-timer { max-width: none; gap: 6px; }
   .who-name { font-size: 22px; }
-  .stage { flex-direction: row; flex-wrap: wrap; align-content: center; column-gap: 24px; row-gap: 4px; padding: 8px 16px; overflow: hidden; }
-  .stage-label, .stage-sub { flex-basis: 100%; }
-  .stage-sub { min-height: 0; font-size: 15px; }
-  .bar, .stage-range, .next { display: none; }
-  .dial { width: auto; height: 36vh; }
-  .timer { font-size: min(28vh, calc((60vw - 84px) / (var(--chars, 5) * 0.62))); }
-  .stage.analog .timer { font-size: min(18vh, 64px); }
+  .t-meta, .next { display: none; }
+  .stage { display: grid; grid-template-columns: auto 1fr; grid-template-rows: auto 1fr auto auto; column-gap: 24px; padding: 10px 16px; }
+  .now-set { grid-row: 1 / -1; grid-template-columns: 1fr; margin: 0; padding: 0 20px 0 0; border-bottom: 0; border-right: 1px solid var(--line); align-content: center; row-gap: 14px; }
+  .ns-cell + .ns-cell { border-left: 0; }
+  .stage-label { grid-column: 2; align-self: end; }
+  .timer { grid-column: 2; font-size: min(34vh, calc((55vw - 84px) / (var(--chars, 5) * 0.62))); }
+  .stage-sub { grid-column: 2; min-height: 0; font-size: 15px; }
+  .stage > .bar { grid-column: 2; margin: 4px 0 0; }
 }

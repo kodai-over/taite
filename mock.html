@@ -6,7 +6,7 @@
     <title>TAITE 確認用モック</title>
     <!--
       確認専用ページ（開発サーバーでだけ開く。ビルド・公開には含まれない）。
-      実物のアプリを iframe で並べ、?now（時刻）・?me（DJ）・?face（表示方式）などで各状態を固定して表示する。
+      実物のアプリを iframe で並べ、?now（時刻）・?me（DJ）・?view（画面）などで各状態を固定して表示する。
     -->
     <style>
       :root {
@@ -71,38 +71,27 @@
 
       const groups = [
         {
-          title: '名前選択とタイマー（デジタル）',
+          title: '名前選択とタイマー',
           items: [
             { name: '名前選択', note: 'リンクを開いた最初の画面', src: url({ now: '2026-11-21T22:40:00', me: 'none' }) },
-            { name: '出番まで', note: '出番の約1時間前', src: url({ now: '2026-11-21T22:00:00', me: 'DJ Ren', face: 'digital' }) },
-            { name: 'まもなく出番', note: '出番10分前から緑', src: url({ now: '2026-11-21T22:52:00', me: 'DJ Ren', face: 'digital' }) },
-            { name: 'プレイ中', note: '残り10分より前', src: url({ now: '2026-11-21T23:40:00', me: 'DJ Ren', face: 'digital' }) },
-            { name: '残り10分', note: '黄色', src: url({ now: '2026-11-22T00:21:00', me: 'DJ Ren', face: 'digital' }) },
-            { name: '残り5分', note: 'オレンジ', src: url({ now: '2026-11-22T00:26:00', me: 'DJ Ren', face: 'digital' }) },
-            { name: '残り1分', note: '画面全体が赤く点滅', src: url({ now: '2026-11-22T00:29:20', me: 'DJ Ren', face: 'digital' }) },
-            { name: '超過', note: '速い点滅（タップで停止）', src: url({ now: '2026-11-22T00:31:10', me: 'DJ Ren', face: 'digital' }) },
-            { name: '超過（点滅停止後）', note: '赤い文字だけ', src: url({ now: '2026-11-22T00:31:10', me: 'DJ Ren', face: 'digital', ack: '1' }) },
-          ],
-        },
-        {
-          title: 'タイマー（アナログ）',
-          items: [
-            { name: '出番まで', note: '扇形 = 今から出番まで（60分で一周）', src: url({ now: '2026-11-21T22:20:00', me: 'DJ Ren', face: 'analog' }) },
-            { name: 'まもなく出番', note: '', src: url({ now: '2026-11-21T22:52:00', me: 'DJ Ren', face: 'analog' }) },
-            { name: 'プレイ中', note: '扇形 = 今から終了まで', src: url({ now: '2026-11-22T00:05:00', me: 'DJ Ren', face: 'analog' }) },
-            { name: '残り5分', note: '', src: url({ now: '2026-11-22T00:26:00', me: 'DJ Ren', face: 'analog' }) },
-            { name: '超過', note: '', src: url({ now: '2026-11-22T00:31:10', me: 'DJ Ren', face: 'analog' }) },
+            { name: '出番まで', note: '出番の約1時間前', src: url({ now: '2026-11-21T22:00:00', me: 'DJ Ren' }) },
+            { name: 'まもなく出番', note: '出番10分前から緑', src: url({ now: '2026-11-21T22:52:00', me: 'DJ Ren' }) },
+            { name: 'プレイ中', note: '残り10分より前', src: url({ now: '2026-11-21T23:40:00', me: 'DJ Ren' }) },
+            { name: '残り10分', note: '黄色', src: url({ now: '2026-11-22T00:21:00', me: 'DJ Ren' }) },
+            { name: '残り5分', note: 'オレンジ', src: url({ now: '2026-11-22T00:26:00', me: 'DJ Ren' }) },
+            { name: '残り1分', note: '画面全体が赤く点滅', src: url({ now: '2026-11-22T00:29:20', me: 'DJ Ren' }) },
+            { name: '超過', note: '速い点滅（タップで停止）', src: url({ now: '2026-11-22T00:31:10', me: 'DJ Ren' }) },
+            { name: '超過（点滅停止後）', note: '赤い文字だけ', src: url({ now: '2026-11-22T00:31:10', me: 'DJ Ren', ack: '1' }) },
           ],
         },
         {
           title: 'その他の画面',
           items: [
             { name: 'タイムテーブル画面', note: '「Timetable」ボタンの先', src: url({ now: '2026-11-21T23:40:00', me: 'DJ Ren', view: 'table' }) },
-            { name: '全体表示', note: '名前選択で「I\'m not a DJ」', src: url({ now: '2026-11-21T23:40:00', me: 'all', face: 'digital' }) },
+            { name: '全体表示', note: '名前選択で「I\'m not a DJ」', src: url({ now: '2026-11-21T23:40:00', me: 'all' }) },
             { name: '作成画面', note: '※ 下書きはこのブラウザに保存されます', src: './' },
-            { name: '小さい画面（iPhone SE）', note: '375×667', src: url({ now: '2026-11-22T00:26:00', me: 'DJ Ren', face: 'analog' }), size: small },
-            { name: '横向き（デジタル）', note: '812×375', src: url({ now: '2026-11-22T00:21:00', me: 'DJ Ren', face: 'digital' }), size: land },
-            { name: '横向き（アナログ）', note: '812×375', src: url({ now: '2026-11-22T00:21:00', me: 'DJ Ren', face: 'analog' }), size: land },
+            { name: '小さい画面（iPhone SE）', note: '375×667', src: url({ now: '2026-11-22T00:26:00', me: 'DJ Ren' }), size: small },
+            { name: '横向き', note: '812×375（ブースに立てかける想定）', src: url({ now: '2026-11-22T00:21:00', me: 'DJ Ren' }), size: land },
           ],
         },
       ]

@@ -1,4 +1,5 @@
 import { icon } from './icons'
+import { esc } from './util'
 
 /* ==========================================================================
    画面下からせり上がる、時刻（ホイール）と日付（カレンダー）の選択パネル
@@ -14,7 +15,7 @@ function openSheet(label: string, body: string): { root: HTMLElement; close: () 
   root.className = 'sheet-root'
   root.innerHTML = `
     <div class="sheet-bg"></div>
-    <div class="sheet" role="dialog" aria-modal="true" aria-label="${label}">${body}</div>`
+    <div class="sheet" role="dialog" aria-modal="true" aria-label="${esc(label)}">${body}</div>`
   document.body.append(root)
   requestAnimationFrame(() => root.classList.add('open'))
   const close = () => {
@@ -69,14 +70,15 @@ function setupWheel(el: HTMLElement, onChange: () => void): () => number {
 export function pickTime(label: string, value: string): Promise<string | null> {
   const [h0 = 21, m0 = 0] = value.split(':').map(Number)
   const hours = Array.from({ length: 24 }, (_, i) => i)
-  const mins = Array.from({ length: 12 }, (_, i) => i * 5)
-  const mi = Math.min(11, Math.round(m0 / 5))
+  // 5分刻み。今の値が5分刻みでなければ、その分も選択肢に入れる（開いて Done しただけで値が変わらないように）
+  const mins = [...new Set([...Array.from({ length: 12 }, (_, i) => i * 5), m0])].sort((a, b) => a - b)
+  const mi = mins.indexOf(m0)
 
   return new Promise((resolve) => {
     const { root, close } = openSheet(
       label,
       `<header class="sheet-h">
-        <span class="sheet-t">${label}</span>
+        <span class="sheet-t">${esc(label)}</span>
         <span class="sheet-v" aria-live="polite"></span>
         <button type="button" class="sheet-done">Done</button>
       </header>

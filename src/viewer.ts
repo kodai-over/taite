@@ -22,9 +22,10 @@ export function renderViewer(root: HTMLElement, ev: EventData, payload: string):
   // 表示中の画面（狭い画面用）。タイムテーブルが起点で、名前をタップするとタイマーへ
   let view: 'table' | 'timer' = me ? 'timer' : 'table'
 
-  // 確認用（mock.html）: URLのパラメータで表示状態を固定する。保存はしない
+  // 確認用（mock.html）: URLのパラメータで表示状態を固定する。保存はしない。
   //   ?me=none（未選択） / DJ名、?view=table、?ack=1（超過の点滅停止済み）
-  const q = new URLSearchParams(location.search)
+  // 開発サーバーでだけ有効（公開版では無視する）
+  const q = new URLSearchParams(import.meta.env.DEV ? location.search : '')
   const qMe = q.get('me')
   if (qMe !== null) me = qMe === 'none' ? null : qMe
   if (q.get('view') === 'table') view = 'table'

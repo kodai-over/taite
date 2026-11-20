@@ -50,4 +50,6 @@ npm run deploy       # ビルドして Cloudflare Workers に公開
 - 画面スリープ防止（Screen Wake Lock API）、オフライン対応（Service Worker）
 
 
-以前の公開URL: https://kodai-over.github.io/taite/ （Cloudflare への移行後は新しいURLへ転送する）
+公開URL: https://taite.pb-worker.workers.dev/
+
+以前の公開URL: https://kodai-over.github.io/taite/ は、`redirect/` のページで新しいURLへ転送している（# 以降も引き継ぐ。古いオフライン用の仕組みも片付ける）。

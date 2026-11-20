@@ -1,0 +1,66 @@
+# PR が開かれたら Claude Code が自動でレビューし、コメントで指摘する（コメントのみ。マージは止めない）
+name: Claude PR review
+
+on:
+  pull_request:
+    types: [opened, synchronize, ready_for_review, reopened]
+
+concurrency:
+  group: claude-review-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  review:
+    # fork からの PR では Secret が使えないため対象外。下書き PR も対象外
+    if: github.event.pull_request.head.repo.full_name == github.repository && !github.event.pull_request.draft
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: write
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          # コメントを1つにまとめ、更新のたびに同じコメントを書き換える（通知メールを増やさない）
+          use_sticky_comment: true
+          prompt: |
+            REPO: ${{ github.repository }}
+            PR NUMBER: ${{ github.event.pull_request.number }}
+
+            このプルリクエストをレビューし、日本語でコメントしてください。コードは変更せず、コメントだけを出します。
+
+            このアプリ（TAITE）は、DJイベントのタイムテーブルをリンクで共有し、DJが自分のスマホで「出番までの時間」と「セットの残り時間」を確認するためのPWAです。サーバーやDBはなく、タイムテーブルは共有リンクの `#v1.` 以降に圧縮して入っています。GitHub Pages で公開しています。
+            まず最初に、「マージすると、イベント本番で使えなくなる、またはDJが時間を読み違えるような重大な変更が入っていないか」を確認してください。細かい点より、これを最優先にします。
+
+            重大な変更の例:
+            - すでに配った共有リンク（`#v1.` 形式）が開けなくなる、または中身が違って読み込まれる（データ形式の互換性が壊れる）
+            - 出番までの時間・残り時間・現在時刻が間違って表示される（日付をまたぐ枠、タイムゾーン、秒の切り上げなど）
+            - 残り10分・5分・1分の警告や超過表示が出ない、または誤ったタイミングで出る
+            - 画面のスリープ防止（Wake Lock）が効かなくなる
+            - オフライン対応（Service Worker）が壊れ、古い版が残り続ける・開けなくなる
+            - GitHub Pages の公開が失敗する、またはビルド・型チェックが通らない
+            - 起動時や画面の表示時に必ずエラーになる
+
+            README.md を読み、次の順で差分を確認します（上ほど優先）。
+            1. 重大な変更: 上の例に当てはまるものがあれば、最も目立つ形で強く指摘し、「どの機能が、どういう条件で、どうおかしくなるか」を書く。なければ「重大な変更は見当たらない」と、確認した範囲を添えて書く
+            2. 動作の不具合、抜け漏れ、境界条件の見落とし（重大とまではいかないもの）
+            3. スマホでの使いやすさ（暗いDJブースでの視認性、タップしやすさ、画面幅からのはみ出し）
+            4. ユーザーに見える文字列が分かりやすく、表記が揃っているか
+
+            出し方:
+            - コメントは PR コメント1つだけにする。行ごとのインラインコメントは出さない（通知メールが増えるため）
+            - 指摘する場所は、コメントの中に「ファイル名:行番号」で書く
+            - 全体の所見をそのコメントにまとめる。冒頭に「重大な変更: あり（内容）/ 見当たらない」を1行で書き、続けて直してほしい点を優先度の高い順に並べる（良い点は1〜2行）
+            - 直してほしい点は「何を・なぜ・どう直すか」を具体的に書く
+            - 直してほしい点がなく、重大な変更もない場合は、コメントの冒頭を「✅ 問題なし。マージして大丈夫です」の1行にし、続けて確認した範囲（重大な変更、不具合、スマホでの使いやすさ、文字列）を短く書く。無理に指摘を探さない
+            - 直してほしい点がある場合は、冒頭を「⚠️ 直してほしい点があります」にする。重大な変更がある場合は、「🚨 マージしないでください。本番で使えなくなる恐れがあります」にする
+            - 好みの問題や細かすぎる指摘は出さない
+          claude_args: |
+            --allowedTools "Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*)"

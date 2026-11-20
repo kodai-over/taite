@@ -231,6 +231,8 @@ export function renderViewer(root: HTMLElement, ev: EventData, payload: string):
 
   const nextAfter = (s: ResolvedSlot): ResolvedSlot | undefined => slots.find((x) => x.start >= s.end && x !== s)
   const rangeOf = (s: ResolvedSlot) => `${fmtHM(s.start)} – ${fmtHM(s.end)}`
+  /** NOW PLAYING / NEXT のDJ名の横に出す開始〜終了（小さめ） */
+  const slotTime = (s: ResolvedSlot) => `${fmtHM(s.start)}–${fmtHM(s.end)}`
 
   const tick = () => {
     const t = now()
@@ -241,11 +243,11 @@ export function renderViewer(root: HTMLElement, ev: EventData, payload: string):
 
     // NOW PLAYING 行: 今プレイ中のDJ名だけ
     np.textContent = cur ? cur.name : '—'
-    npTime.textContent = cur ? fmtHM(cur.end) : '' // 終了時刻
-    // NEXT 行: 今の枠の次（誰もプレイしていなければ、次に始まる枠）と開始時刻
+    npTime.textContent = cur ? slotTime(cur) : ''
+    // NEXT 行: 今の枠の次（誰もプレイしていなければ、次に始まる枠）
     const nextSlot = cur ? nextAfter(cur) : upcoming
     nx.textContent = nextSlot ? nextSlot.name : '—'
-    nxTime.textContent = nextSlot ? fmtHM(nextSlot.start) : ''
+    nxTime.textContent = nextSlot ? slotTime(nextSlot) : ''
 
     items.forEach((li, k) => {
       const s = slots[k]

@@ -179,7 +179,7 @@ body.lock { overflow: hidden; }
   font-family: var(--mono); font-variant-numeric: tabular-nums; font-weight: 700;
   font-size: clamp(16px, 4.6vw, 26px); white-space: nowrap;
 }
-/* NOW PLAYING / NEXT: 見出し・DJ名・時刻（NOW PLAYING は終了時刻、NEXT は開始時刻）を揃えて並べる */
+/* NOW PLAYING / NEXT: 見出し・DJ名・開始〜終了（DJ名より小さめ）を揃えて並べる */
 .lineup {
   grid-column: 1 / -1;
   display: grid;
@@ -194,7 +194,7 @@ body.lock { overflow: hidden; }
 }
 .lineup dd { margin: 0; }
 .lu-name { font-size: clamp(14px, 4.2vw, 18px); font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
-.lu-time { font-family: var(--mono); font-variant-numeric: tabular-nums; font-size: clamp(14px, 4.2vw, 18px); font-weight: 700; color: var(--muted); }
+.lu-time { font-family: var(--mono); font-variant-numeric: tabular-nums; font-size: clamp(11px, 3.3vw, 14px); font-weight: 600; color: var(--muted); white-space: nowrap; }
 .stage > .bar { margin-bottom: auto; }
 
 .stage-label { font-size: 13px; font-weight: 700; letter-spacing: 0.12em; color: var(--muted); }

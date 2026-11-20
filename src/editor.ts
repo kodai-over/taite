@@ -140,8 +140,9 @@ export function renderEditor(root: HTMLElement, ctx: { id?: string; key?: string
   let saving = false
   let dirty = false
   let disposed = false
+  // 保存の状態は、問題がある時（電波なし・編集リンクが無効）だけ表示する
   const showSave = (text: string, kind: '' | 'warn' = '') => {
-    saveEl.textContent = text
+    saveEl.textContent = kind === 'warn' ? text : ''
     saveEl.dataset.kind = kind
   }
   const flush = async () => {

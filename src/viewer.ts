@@ -1,5 +1,6 @@
 import { resolve, type EventData, type ResolvedSlot } from './data'
 import { esc, fmtClock, fmtDur, fmtHM, now, store } from './util'
+import { icon } from './icons'
 import { initWakeLock } from './wakelock'
 
 /** 警告レベル: 出番直前 / 残り10分 / 5分 / 1分 / 超過 / 超過（点滅停止済み） */
@@ -43,83 +44,79 @@ export function renderViewer(root: HTMLElement, ev: EventData, payload: string):
 
   root.innerHTML = `
   <section id="picker" class="picker" hidden>
-    <div class="v-title">${title}</div>
-    <h1>Who are you?</h1>
-    <p>Pick your name to see the time until your set and the time left in it.</p>
+    <span class="ev">${title}</span>
+    <h1 class="pk-q">Who are you?</h1>
     <ul class="pick-list">
       ${djs
         .map(
           (d) => `
         <li><button type="button" class="pick" data-name="${esc(d.name)}">
-          <span class="n">${esc(d.name)}</span><span class="t">${d.times}</span>
+          <span class="pk-name">${esc(d.name)}</span><span class="pk-time">${d.times}</span>
         </button></li>`,
         )
         .join('')}
     </ul>
-    <button type="button" id="pick-all" class="btn ghost wide">I'm not a DJ — show the full timetable</button>
+    <button type="button" id="pick-all" class="pick pick-all" aria-label="I'm not a DJ — show everyone">
+      ${icon.all}<span class="pk-name">Everyone</span>
+    </button>
   </section>
 
-  <div id="view-timer" class="view-timer" hidden>
-    <header class="t-top">
-      <div class="who">
-        <span class="v-title">${title}</span>
-        <span id="who-name" class="who-name"></span>
-      </div>
-      <button type="button" id="change" class="btn small ghost">Change</button>
-    </header>
-
-    <section id="stage" class="stage" aria-live="polite">
-      <div class="now-set">
-        <div class="ns-cell">
-          <span class="ns-label">NOW</span>
-          <span id="clock" class="ns-value" aria-label="Current time">--:--:--</span>
+  <div id="deck" class="deck" hidden>
+    <section class="pane pane-timer">
+      <header class="top">
+        <div class="who">
+          <span class="ev">${title}</span>
+          <span id="who-name" class="me"></span>
         </div>
-        <div class="ns-cell">
-          <span id="set-label" class="ns-label">SET</span>
-          <span id="set" class="ns-value">--:-- – --:--</span>
+        <button type="button" id="change" class="ibtn" aria-label="Switch DJ" title="Switch DJ">${icon.swap}</button>
+      </header>
+
+      <div id="stage" class="display" aria-live="polite">
+        <div class="readouts">
+          <div class="ro" title="Now">${icon.clock}<span id="clock" class="ro-v" aria-label="Current time">--:--:--</span></div>
+          <div class="ro" title="Set">${icon.headphones}<span id="set" class="ro-v" aria-label="Set time">--:--–--:--</span></div>
         </div>
         <dl class="lineup">
-          <dt id="np-label" class="ns-label">NOW PLAYING</dt>
+          <dt id="np-ic" title="Now playing" aria-label="Now playing">${icon.play}</dt>
           <dd id="np" class="lu-name">—</dd>
           <dd id="np-time" class="lu-time"></dd>
-          <dt class="ns-label">NEXT</dt>
+          <dt title="Next" aria-label="Next">${icon.next}</dt>
           <dd id="nx" class="lu-name">—</dd>
           <dd id="nx-time" class="lu-time"></dd>
         </dl>
+        <div class="core">
+          <div class="status"><i class="led" aria-hidden="true"></i><span id="label"></span></div>
+          <div id="timer" class="timer">--:--</div>
+          <div id="sub" class="sub"></div>
+        </div>
+        <div class="meter" aria-hidden="true"><div id="bar" class="meter-fill"></div></div>
       </div>
-      <div id="label" class="stage-label"></div>
-      <div id="timer" class="timer">--:--</div>
-      <div id="sub" class="stage-sub"></div>
-      <div class="bar"><div id="bar" class="bar-fill"></div></div>
+
+      <footer class="bottom">
+        <button type="button" id="to-table" class="ibtn" aria-label="Timetable" title="Timetable">${icon.list}</button>
+        <button type="button" id="wake" class="ibtn wake"></button>
+      </footer>
     </section>
 
-    <footer class="t-bottom">
-      <button type="button" id="to-table" class="btn">Timetable</button>
-      <button type="button" id="wake" class="wake"></button>
-    </footer>
-  </div>
-
-  <div id="view-table" class="view-table" hidden>
-    <header class="l-top">
-      <button type="button" id="back" class="btn small">← Timer</button>
-      <span class="v-title">${title}</span>
-    </header>
-    <h1 class="l-head">Timetable</h1>
-    <ol id="list" class="list">
-      ${slots
-        .map(
-          (s) => `
-        <li data-i="${s.i}" data-name="${esc(s.name)}">
-          <div class="row">
-            <span class="t">${fmtHM(s.start)}–${fmtHM(s.end)}</span>
-            <span class="n">${esc(s.name)}</span>
-            <span class="badge"></span>
-          </div>
-        </li>`,
-        )
-        .join('')}
-    </ol>
-    <a class="btn wide l-edit" href="#e.${payload}">Edit / duplicate this timetable</a>
+    <section class="pane pane-table" aria-label="Timetable">
+      <header class="top">
+        <button type="button" id="back" class="ibtn" aria-label="Back to timer" title="Back">${icon.back}</button>
+        <span class="ev">${title}</span>
+        <a class="ibtn" href="#e.${payload}" aria-label="Edit or duplicate this timetable" title="Edit / duplicate">${icon.edit}</a>
+      </header>
+      <ol id="list" class="list">
+        ${slots
+          .map(
+            (s) => `
+          <li data-i="${s.i}" data-name="${esc(s.name)}">
+            <span class="li-time">${fmtHM(s.start)}–${fmtHM(s.end)}</span>
+            <span class="li-name">${esc(s.name)}</span>
+            <span class="li-mark" aria-hidden="true"></span>
+          </li>`,
+          )
+          .join('')}
+      </ol>
+    </section>
   </div>`
 
   const $ = <T extends Element = HTMLElement>(id: string) => root.querySelector<T>('#' + id)!
@@ -128,10 +125,9 @@ export function renderViewer(root: HTMLElement, ev: EventData, payload: string):
   const sub = $('sub')
   const timer = $('timer')
   const bar = $('bar')
-  const setLabel = $('set-label')
   const setEl = $('set')
   const whoName = $('who-name')
-  const npLabel = $('np-label')
+  const npIc = $('np-ic')
   const np = $('np')
   const npTime = $('np-time')
   const nx = $('nx')
@@ -141,23 +137,21 @@ export function renderViewer(root: HTMLElement, ev: EventData, payload: string):
   const list = $<HTMLOListElement>('list')
   const items = [...list.querySelectorAll<HTMLLIElement>('li')]
   const picker = $('picker')
-  const viewTimer = $('view-timer')
-  const viewTable = $('view-table')
+  const deck = $('deck')
 
   const isDj = () => me !== null && me !== ALL
 
   /** 表示する画面（名前選択 / タイマー / タイムテーブル）を切り替える */
   const renderView = () => {
     picker.hidden = me !== null
-    viewTimer.hidden = me === null || showTable
-    viewTable.hidden = me === null || !showTable
-    // タイマー画面はスクロールさせず画面に固定する
-    document.body.classList.toggle('lock', !viewTimer.hidden)
-    whoName.textContent = isDj() ? me! : 'Full timetable'
-    // 全体表示では中央がそのまま NOW PLAYING なので、NEXT だけ出す
-    for (const el of [npLabel, np, npTime]) el.hidden = !isDj()
-    change.textContent = isDj() ? 'Change' : 'Pick my name'
-    setLabel.textContent = isDj() ? 'YOUR SET' : 'SET'
+    deck.hidden = me === null
+    // 狭い画面ではタイマーとタイムテーブルを切り替える（広い画面では CSS で両方並べる）
+    deck.dataset.view = showTable ? 'table' : 'timer'
+    // タイマーは画面に固定してスクロールさせない
+    document.body.classList.toggle('lock', !deck.hidden)
+    whoName.textContent = isDj() ? me! : 'Everyone'
+    // 全体表示では中央がそのまま今プレイ中のDJなので、NEXT だけ出す
+    for (const el of [npIc, np, npTime]) el.hidden = !isDj()
   }
 
   const setMe = (name: string | null) => {
@@ -222,6 +216,7 @@ export function renderViewer(root: HTMLElement, ev: EventData, payload: string):
     bar.style.transform = `scaleX(${Math.min(1, Math.max(0, o.progress))})`
     setEl.textContent = o.set
     document.body.dataset.level = o.level
+    stage.dataset.state = o.label.toLowerCase().replace(/\s+/g, '-')
     const canVibrate = navigator.userActivation?.hasBeenActive ?? true // 未タップ時はブラウザが拒否する
     if (canVibrate && o.level !== lastLevel && ['soon', 'w5', 'w1', 'over'].includes(o.level)) {
       navigator.vibrate?.([200, 100, 200])
@@ -230,7 +225,7 @@ export function renderViewer(root: HTMLElement, ev: EventData, payload: string):
   }
 
   const nextAfter = (s: ResolvedSlot): ResolvedSlot | undefined => slots.find((x) => x.start >= s.end && x !== s)
-  const rangeOf = (s: ResolvedSlot) => `${fmtHM(s.start)} – ${fmtHM(s.end)}`
+  const rangeOf = (s: ResolvedSlot) => `${fmtHM(s.start)}–${fmtHM(s.end)}`
   /** NOW PLAYING / NEXT のDJ名の横に出す開始〜終了（小さめ） */
   const slotTime = (s: ResolvedSlot) => `${fmtHM(s.start)}–${fmtHM(s.end)}`
 
@@ -254,11 +249,11 @@ export function renderViewer(root: HTMLElement, ev: EventData, payload: string):
       li.classList.toggle('past', s.end <= t)
       li.classList.toggle('now', s === cur)
       li.classList.toggle('mine', isDj() && s.name === me)
-      li.querySelector('.badge')!.textContent = s === cur ? 'NOW' : isDj() && s.name === me ? 'YOU' : ''
+      li.querySelector('.li-mark')!.innerHTML = s === cur ? icon.play : isDj() && s.name === me ? icon.headphones : ''
     })
 
     if (!slots.length) {
-      show({ label: 'NO TIMETABLE', sub: 'This link has no sets.', timer: '--:--', progress: 0, set: '--:-- – --:--', level: '' })
+      show({ label: 'NO DATA', sub: 'This link has no sets', timer: '--:--', progress: 0, set: '--:--–--:--', level: '' })
       return
     }
 
@@ -280,7 +275,7 @@ export function renderViewer(root: HTMLElement, ev: EventData, payload: string):
       if (t < target.start) {
         const wait = target.start - t
         show({
-          label: wait <= SOON_MS ? "YOU'RE ON SOON" : 'YOUR SET STARTS IN',
+          label: wait <= SOON_MS ? 'CUE' : 'STANDBY',
           sub: '',
           timer: fmtDur(wait),
           progress: 0,
@@ -290,8 +285,8 @@ export function renderViewer(root: HTMLElement, ev: EventData, payload: string):
       } else if (t < target.end) {
         const remain = target.end - t
         show({
-          label: 'TIME LEFT',
-          sub: 'ON AIR',
+          label: 'ON AIR',
+          sub: '',
           timer: fmtDur(remain),
           progress: (t - target.start) / (target.end - target.start),
           set: rangeOf(target),
@@ -302,16 +297,16 @@ export function renderViewer(root: HTMLElement, ev: EventData, payload: string):
         const acked = forceAck || ackedSlot === overSlot
         const following = nextAfter(target)
         show({
-          label: acked ? 'OVERTIME' : 'OVERTIME · TAP TO STOP FLASHING',
+          label: 'OVER',
           // 次のDJは NEXT 行に出るので、最後のセットの時だけ補足する
-          sub: following ? '' : 'Last set of the night',
+          sub: acked ? (following ? '' : 'Last set') : 'Tap to stop flashing',
           timer: '+' + fmtDur(t - target.end),
           progress: 1,
           set: rangeOf(target),
           level: acked ? 'overAck' : 'over',
         })
       } else {
-        show({ label: 'SET COMPLETE', sub: 'Great set!', timer: '--:--', progress: 1, set: rangeOf(target), level: '' })
+        show({ label: 'OFF AIR', sub: '', timer: '--:--', progress: 1, set: rangeOf(target), level: '' })
       }
       return
     }
@@ -320,7 +315,7 @@ export function renderViewer(root: HTMLElement, ev: EventData, payload: string):
     if (cur) {
       const remain = cur.end - t
       show({
-        label: 'NOW PLAYING',
+        label: 'ON AIR',
         sub: cur.name,
         timer: fmtDur(remain),
         progress: (t - cur.start) / (cur.end - cur.start),
@@ -329,7 +324,7 @@ export function renderViewer(root: HTMLElement, ev: EventData, payload: string):
       })
     } else if (upcoming) {
       show({
-        label: upcoming === slots[0] ? 'STARTS IN' : 'NEXT SET IN',
+        label: 'STANDBY',
         sub: upcoming.name,
         timer: fmtDur(upcoming.start - t),
         progress: 0,
@@ -337,7 +332,7 @@ export function renderViewer(root: HTMLElement, ev: EventData, payload: string):
         level: '',
       })
     } else {
-      show({ label: 'EVENT OVER', sub: 'Thank you!', timer: '--:--', progress: 1, set: '--:-- – --:--', level: '' })
+      show({ label: 'END', sub: '', timer: '--:--', progress: 1, set: '--:--–--:--', level: '' })
     }
   }
 

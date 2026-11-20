@@ -1,3 +1,5 @@
+import { icon } from './icons'
+
 /**
  * 画面の自動スリープ防止（Screen Wake Lock API）。
  * タブを離れると OS が解除するので、戻ってきた時・タップ時に取り直す。
@@ -9,13 +11,15 @@ export function initWakeLock(btn: HTMLButtonElement): () => void {
   let disposed = false
 
   const render = () => {
-    if (!supported) {
-      btn.dataset.state = 'na'
-      btn.textContent = 'Screen lock: not supported'
-      return
-    }
-    btn.dataset.state = sentinel ? 'on' : 'off'
-    btn.textContent = sentinel ? '● Screen stays on' : '○ Keep screen on'
+    // 文字は出さず、点灯（太陽）/ 消灯可（月）のアイコンで状態を示す
+    const state = !supported ? 'na' : sentinel ? 'on' : 'off'
+    const text =
+      state === 'na' ? "Can't keep the screen on in this browser" : state === 'on' ? 'Screen stays on' : 'Keep screen on'
+    btn.dataset.state = state
+    btn.innerHTML = state === 'on' ? icon.awake : icon.asleep
+    btn.setAttribute('aria-label', text)
+    btn.title = text
+    btn.setAttribute('aria-pressed', String(state === 'on'))
   }
 
   const acquire = async () => {

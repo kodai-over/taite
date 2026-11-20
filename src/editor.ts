@@ -1,5 +1,6 @@
 import QRCode from 'qrcode'
 import { encode, fromMin, normalize, resolve, toMin, tzOffsetFor, type EventData, type Slot } from './data'
+import { icon } from './icons'
 import { esc, fmtHM, store, todayISO } from './util'
 
 const DRAFT_KEY = 'taite:draft'
@@ -37,34 +38,29 @@ export function renderEditor(root: HTMLElement, init?: EventData): () => void {
   root.innerHTML = `
   <div class="editor">
     <header class="e-head">
-      <h1>TAITE</h1>
-      <p>DJ Set Timer — build a timetable and share the link. Each DJ sees the time until their set and the time left in it on their phone.</p>
+      <h1 class="brand">TAITE</h1>
+      <p class="tagline">DJ set timer</p>
     </header>
 
-    <label class="field"><span>Event name</span>
-      <input id="title" maxlength="60" placeholder="e.g. NIGHT GROOVE vol.3" autocomplete="off">
-    </label>
-    <label class="field"><span>Date (day of the first set)</span>
-      <input id="date" type="date">
-    </label>
+    <div class="fields">
+      <input id="title" class="fld" maxlength="60" placeholder="Event name" aria-label="Event name" autocomplete="off">
+      <label class="fld fld-date" title="Date of the first set">${icon.calendar}
+        <input id="date" type="date" aria-label="Date of the first set">
+      </label>
+    </div>
 
-    <h2 class="sec">Timetable</h2>
     <ol id="slots" class="slots"></ol>
-    <button id="add" class="btn ghost wide" type="button">+ Add a set</button>
+    <button id="add" class="add" type="button" aria-label="Add a set" title="Add a set">${icon.plus}</button>
     <ul id="msg" class="msg"></ul>
 
-    <section class="share">
-      <h2 class="sec">Share</h2>
-      <div class="share-row">
-        <input id="url" readonly aria-label="Share link">
-        <button id="copy" class="btn" type="button">Copy</button>
-      </div>
-      <div class="share-actions">
-        <button id="nshare" class="btn" type="button" hidden>Share…</button>
-        <a id="open" class="btn primary">Open timer</a>
-      </div>
+    <section class="share" aria-label="Share">
       <img id="qr" class="qr" alt="QR code for the share link" width="240" height="240" hidden>
-      <p class="hint">The timetable lives inside the link itself — nothing is stored on a server. If you change anything, share the new link again.</p>
+      <div class="share-row">
+        <input id="url" class="fld" readonly aria-label="Share link">
+        <button id="copy" class="ibtn" type="button" aria-label="Copy link" title="Copy link">${icon.copy}</button>
+        <button id="nshare" class="ibtn" type="button" aria-label="Share" title="Share" hidden>${icon.share}</button>
+      </div>
+      <a id="open" class="go" aria-label="Open timer">${icon.play}<span>Open timer</span></a>
     </section>
   </div>`
 
@@ -87,16 +83,16 @@ export function renderEditor(root: HTMLElement, init?: EventData): () => void {
       .map(
         ([s, e, n], i) => `
       <li class="slot" data-i="${i}">
-        <input type="time" class="s" value="${esc(s)}" aria-label="Start">
-        <span class="tilde">–</span>
-        <input type="time" class="e" value="${esc(e)}" aria-label="End">
-        <div class="row2">
         <input class="n" value="${esc(n)}" placeholder="DJ name" maxlength="40" autocomplete="off" aria-label="DJ name">
-        <div class="ops">
-          <button type="button" data-op="up" aria-label="Move up" ${i === 0 ? 'disabled' : ''}>↑</button>
-          <button type="button" data-op="down" aria-label="Move down" ${i === ev.s.length - 1 ? 'disabled' : ''}>↓</button>
-          <button type="button" data-op="del" aria-label="Delete" ${ev.s.length === 1 ? 'disabled' : ''}>✕</button>
+        <div class="times">
+          <input type="time" class="s" value="${esc(s)}" aria-label="Start">
+          <span class="dash" aria-hidden="true"></span>
+          <input type="time" class="e" value="${esc(e)}" aria-label="End">
         </div>
+        <div class="ops">
+          <button type="button" data-op="up" aria-label="Move up" ${i === 0 ? 'disabled' : ''}>${icon.up}</button>
+          <button type="button" data-op="down" aria-label="Move down" ${i === ev.s.length - 1 ? 'disabled' : ''}>${icon.down}</button>
+          <button type="button" data-op="del" aria-label="Delete" ${ev.s.length === 1 ? 'disabled' : ''}>${icon.remove}</button>
         </div>
       </li>`,
       )
@@ -209,8 +205,12 @@ export function renderEditor(root: HTMLElement, init?: EventData): () => void {
       urlInput.select()
       document.execCommand('copy')
     }
-    copy.textContent = 'Copied!'
-    setTimeout(() => (copy.textContent = 'Copy'), 1500)
+    copy.innerHTML = icon.check
+    copy.classList.add('done')
+    setTimeout(() => {
+      copy.innerHTML = icon.copy
+      copy.classList.remove('done')
+    }, 1500)
   })
 
   if ('share' in navigator) {

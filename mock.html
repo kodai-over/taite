@@ -75,7 +75,7 @@
         {
           title: 'タイマー',
           items: [
-            { name: '最初の画面（タイムテーブル）', note: '自分の名前をタップ', src: url({ now: '2026-11-21T22:40:00', me: 'none' }) },
+            { name: '最初の画面（タイムテーブル）', note: '名前をタップでタイマーへ', src: url({ now: '2026-11-21T22:40:00', me: 'none' }) },
             { name: '出番まで', note: '出番の約1時間前', src: url({ now: '2026-11-21T22:00:00', me: 'DJ Ren' }) },
             { name: 'まもなく出番', note: 'CUE（10分前からマゼンタ）', src: url({ now: '2026-11-21T22:52:00', me: 'DJ Ren' }) },
             { name: 'プレイ中', note: '残り10分より前', src: url({ now: '2026-11-21T23:40:00', me: 'DJ Ren' }) },
@@ -89,13 +89,13 @@
         {
           title: 'その他の画面',
           items: [
-            { name: 'タイムテーブル（選択後）', note: '☰ の先。名前タップで切り替え', src: url({ now: '2026-11-21T23:40:00', me: 'DJ Ren', view: 'table' }) },
+            { name: 'タイムテーブル（選択後）', note: '左上の ‹ で開く。名前タップでそのDJのタイマーへ', src: url({ now: '2026-11-21T23:40:00', me: 'DJ Ren', view: 'table' }) },
             { name: '作成画面', note: '※ 下書きはこのブラウザに保存されます', src: './' },
             { name: '小さい画面（iPhone SE）', note: '375×667', src: url({ now: '2026-11-22T00:26:00', me: 'DJ Ren' }), size: small },
             { name: '横向き', note: '812×375（ブースに立てかける想定）', src: url({ now: '2026-11-22T00:21:00', me: 'DJ Ren' }), size: land },
             { name: 'iPhone Duo（閉じた状態・外側）', note: '細い画面', src: url({ now: '2026-11-21T22:52:00', me: 'DJ Ren' }), size: duoOuter },
-            { name: 'iPhone Duo（内側・未選択）', note: '最初はタップで選べる', src: url({ now: '2026-11-22T00:21:00', me: 'none' }), size: duoInner },
-            { name: 'iPhone Duo（開いた状態・内側）', note: '左右に並べる。切り替えは長押し', src: url({ now: '2026-11-22T00:21:00', me: 'DJ Ren' }), size: duoInner },
+            { name: 'iPhone Duo（内側・未選択）', note: '名前をタップでタイマーを表示', src: url({ now: '2026-11-22T00:21:00', me: 'none' }), size: duoInner },
+            { name: 'iPhone Duo（開いた状態・内側）', note: '左右に並べる。名前タップで切り替え', src: url({ now: '2026-11-22T00:21:00', me: 'DJ Ren' }), size: duoInner },
           ],
         },
       ]
@@ -112,7 +112,7 @@
                 const sz = it.size || phone
                 return `
               <figure style="--fw:${sz.fw}px; --fh:${sz.fh}px">
-                <div class="device"><iframe src="${it.src}" title="${it.name}" loading="lazy"></iframe></div>
+                <div class="device"><iframe src="${it.src}" title="${it.name}" loading="lazy" allow="screen-wake-lock"></iframe></div>
                 <figcaption><b>${it.name}</b><span>${it.note}</span> <a href="${it.src}" target="_blank" rel="noopener">単体で開く ↗</a></figcaption>
               </figure>`
               })

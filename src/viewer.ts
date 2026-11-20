@@ -8,9 +8,6 @@ type Level = '' | 'soon' | 'w10' | 'w5' | 'w1' | 'over' | 'overAck'
 const MIN = 60_000
 const OVER_SHOW_MS = 30 * MIN // 自分のセット終了後、超過表示を続ける時間（延長してプレイ中の場合もあるため長めに。点滅はタップで止められる）
 const SOON_MS = 10 * MIN // 出番の何分前から「まもなく出番」にするか
-const LONG_PRESS_MS = 500 // 広い画面でDJを切り替える長押しの長さ
-/** タイマーとタイムテーブルを左右に並べる広い画面か（style.css のメディアクエリと揃える） */
-const WIDE_QUERY = '(min-width: 720px) and (min-height: 520px), (horizontal-viewport-segments: 2)'
 
 const levelOf = (remain: number): Level =>
   remain <= 1 * MIN ? 'w1' : remain <= 5 * MIN ? 'w5' : remain <= 10 * MIN ? 'w10' : ''
@@ -22,24 +19,28 @@ export function renderViewer(root: HTMLElement, ev: EventData, payload: string):
   const saved = store.get(meKey)
   // null = まだ選んでいない（タイムテーブルから選んでもらう）、それ以外 = 自分のDJ名
   let me: string | null = slots.some((s) => s.name === saved) ? saved : null
-  let showTable = false
+  // 表示中の画面（狭い画面用）。タイムテーブルが起点で、名前をタップするとタイマーへ
+  let view: 'table' | 'timer' = me ? 'timer' : 'table'
 
   // 確認用（mock.html）: URLのパラメータで表示状態を固定する。保存はしない
   //   ?me=none（未選択） / DJ名、?view=table、?ack=1（超過の点滅停止済み）
   const q = new URLSearchParams(location.search)
   const qMe = q.get('me')
   if (qMe !== null) me = qMe === 'none' ? null : qMe
-  if (q.get('view') === 'table') showTable = true
+  if (q.get('view') === 'table') view = 'table'
+  if (qMe !== null && qMe !== 'none' && q.get('view') !== 'table') view = 'timer'
   const forceAck = q.get('ack') === '1'
 
   root.innerHTML = `
   <div id="deck" class="deck">
     <section class="pane pane-timer">
       <header class="top">
+        <button type="button" id="to-table" class="ibtn" aria-label="Back to timetable" title="Timetable">${icon.back}</button>
         <div class="who">
           <span class="ev">${title}</span>
           <span id="who-name" class="me"></span>
         </div>
+        <button type="button" id="wake" class="ibtn wake"></button>
       </header>
 
       <div id="stage" class="display" aria-live="polite">
@@ -62,20 +63,14 @@ export function renderViewer(root: HTMLElement, ev: EventData, payload: string):
         </div>
         <div class="meter" aria-hidden="true"><div id="bar" class="meter-fill"></div></div>
       </div>
-
-      <footer class="bottom">
-        <button type="button" id="to-table" class="ibtn" aria-label="Timetable" title="Timetable">${icon.list}</button>
-        <button type="button" id="wake" class="ibtn wake"></button>
-      </footer>
     </section>
 
     <section class="pane pane-table" aria-label="Timetable">
       <header class="top">
-        <button type="button" id="back" class="ibtn" aria-label="Back to timer" title="Back">${icon.back}</button>
         <span class="ev">${title}</span>
         <a class="ibtn" href="#e.${payload}" aria-label="Edit or duplicate this timetable" title="Edit / duplicate">${icon.edit}</a>
       </header>
-      <p id="hint" class="l-hint">${slots.length ? 'Tap your name' : 'This link has no sets'}</p>
+      <p id="hint" class="l-hint">${slots.length ? 'Tap a name to open its timer' : 'This link has no sets'}</p>
       <ol id="list" class="list">
         ${slots
           .map(
@@ -110,74 +105,45 @@ export function renderViewer(root: HTMLElement, ev: EventData, payload: string):
   const items = [...list.querySelectorAll<HTMLLIElement>('li')]
   const deck = $('deck')
   const hint = $('hint')
-  const back = $('back')
-  const wide = matchMedia(WIDE_QUERY)
 
-  /** 表示する画面（タイマー / タイムテーブル）を切り替える */
+  /** 表示する画面（タイマー / タイムテーブル）を切り替える（広い画面では CSS で両方並べる） */
   const renderView = () => {
-    // 狭い画面ではタイマーとタイムテーブルを切り替える（広い画面では CSS で両方並べる）。
-    // 自分をまだ選んでいなければタイムテーブルを出す
-    deck.dataset.view = showTable || me === null ? 'table' : 'timer'
+    deck.dataset.view = me === null ? 'table' : view
     // 画面に固定してスクロールさせない（一覧は内側でスクロール）
     document.body.classList.add('lock')
     whoName.textContent = me ?? '—'
-    hint.hidden = me !== null && slots.length > 0
-    back.hidden = me === null
+    hint.hidden = !!me && slots.length > 0
   }
 
-  /** 自分のDJを決めてタイマーへ */
-  const selectMe = (name: string) => {
+  /** そのDJのタイマーを開く。タイムテーブルの上に積むので、端末の「戻る」でも一覧に戻れる */
+  const openTimer = (name: string) => {
     me = name
     store.set(meKey, name)
-    if ((history.state as { taite?: string } | null)?.taite === 'table') {
-      history.back() // ☰ から開いた一覧なら履歴を戻してタイマーへ（popstate で再描画）
-    } else {
-      showTable = false
+    if (view !== 'timer') {
+      history.pushState({ taite: 'timer' }, '')
+      view = 'timer'
     }
     renderView()
     tick()
   }
 
-  // 一覧の名前で自分を選ぶ。スマホは「一覧を開いてタップ」なので意図した操作とみなしてタップで切り替える。
-  // 一覧が常に見えている広い画面では、暗いブースでの誤タップを防ぐため長押しで切り替える（未選択時はタップで可）
-  let pressTimer = 0
-  let longPressed = false
-  const needsLongPress = () => wide.matches && me !== null
-  list.addEventListener('pointerdown', (e) => {
-    const b = (e.target as HTMLElement).closest<HTMLButtonElement>('button.row')
-    if (!b || !needsLongPress()) return
-    longPressed = false
-    b.classList.add('pressing')
-    pressTimer = window.setTimeout(() => {
-      longPressed = true
-      b.classList.remove('pressing')
-      navigator.vibrate?.(30)
-      selectMe(b.dataset.name!)
-    }, LONG_PRESS_MS)
-  })
-  const cancelPress = () => {
-    clearTimeout(pressTimer)
-    list.querySelectorAll('.pressing').forEach((el) => el.classList.remove('pressing'))
+  /** タイムテーブルへ戻る */
+  const openTable = () => {
+    if ((history.state as { taite?: string } | null)?.taite === 'timer') {
+      history.back() // popstate で再描画
+    } else {
+      view = 'table'
+      renderView()
+    }
   }
-  for (const type of ['pointerup', 'pointerleave', 'pointercancel']) list.addEventListener(type, cancelPress)
+
   list.addEventListener('click', (e) => {
     const b = (e.target as HTMLElement).closest<HTMLButtonElement>('button.row')
-    if (!b || needsLongPress() || longPressed) return
-    selectMe(b.dataset.name!)
+    if (b) openTimer(b.dataset.name!)
   })
-  // 長押しでブラウザのメニューが出ないように
-  list.addEventListener('contextmenu', (e) => e.preventDefault())
-
-  // タイムテーブル画面は履歴に積み、端末の「戻る」でもタイマーに戻れるようにする
-  $('to-table').addEventListener('click', () => {
-    history.pushState({ taite: 'table' }, '')
-    showTable = true
-    renderView()
-    window.scrollTo({ top: 0 })
-  })
-  $('back').addEventListener('click', () => history.back())
+  $('to-table').addEventListener('click', openTable)
   const onPop = (e: PopStateEvent) => {
-    showTable = (e.state as { taite?: string } | null)?.taite === 'table'
+    view = (e.state as { taite?: string } | null)?.taite === 'timer' ? 'timer' : 'table'
     renderView()
   }
   window.addEventListener('popstate', onPop)

@@ -103,7 +103,6 @@ a { text-decoration: none; }
 .top { display: flex; align-items: center; gap: 10px; min-height: 44px; }
 .who { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 .me { font-size: 13px; font-weight: 700; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.bottom { display: flex; align-items: center; justify-content: space-between; }
 
 /* --- 表示面 --- */
 .display {
@@ -187,7 +186,22 @@ a { text-decoration: none; }
 /* 画面を消さない（控えめ） */
 .wake { background: transparent; color: var(--dim); }
 .wake[data-state='on'] { color: var(--cyan); }
-.wake[data-state='na'] { opacity: 0.45; }
+.wake[data-state='na'], .wake[data-state='refused'] { opacity: 0.5; }
+
+/* 短いお知らせ */
+.toast {
+  position: fixed; z-index: 10;
+  left: 50%; bottom: max(20px, env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  width: min(420px, calc(100vw - 32px));
+  padding: 12px 16px;
+  background: var(--panel-2); color: var(--ink);
+  font-size: 14px; line-height: 1.4;
+  clip-path: var(--chamfer); --c: 10px;
+  box-shadow: inset 3px 0 0 var(--cyan);
+  animation: toast-in 0.2s ease-out;
+}
+@keyframes toast-in { from { opacity: 0; transform: translate(-50%, 8px); } }
 
 /* --- タイムテーブル --- */
 .pane-table .top .ev { flex: 1; text-align: center; }
@@ -206,9 +220,6 @@ a { text-decoration: none; }
 }
 .list .row:active { background: var(--panel-2); }
 .list .row:focus-visible { outline: none; box-shadow: inset 0 0 0 2px var(--cyan); }
-/* 長押し中: 左から右へ光が満ちていく */
-.list .row.pressing { background: linear-gradient(90deg, color-mix(in srgb, var(--magenta) 28%, var(--panel)) 0 0) no-repeat left / 0% 100%, var(--panel); animation: press 0.5s linear forwards; }
-@keyframes press { to { background-size: 100% 100%, auto; } }
 .li-time { font-family: var(--f-num); font-size: 15px; color: var(--dim); }
 .li-name { font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .li-mark { color: var(--cyan); }
@@ -230,8 +241,9 @@ body[data-level='over'],
 body[data-level='overAck'] { --sig: var(--red); }
 .display[data-state='off-air'],
 .display[data-state='no-dj'] { --sig: var(--dim); }
-/* 自分を選ぶ前は数字を控えめに（一覧の「Tap your name」に目を向けてもらう） */
-.display[data-state='no-dj'] .timer { opacity: 0.25; text-shadow: none; }
+/* 自分を選ぶ前・セット終了後は数字（--:--）を控えめに */
+.display[data-state='no-dj'] .timer,
+.display[data-state='off-air'] .timer { opacity: 0.25; text-shadow: none; }
 
 body[data-level='w1'], body[data-level='over'] { animation: flash 1s steps(1, end) infinite; }
 body[data-level='over'] { animation-duration: 0.6s; }
@@ -360,12 +372,8 @@ body[data-level='w1'] .led, body[data-level='over'] .led { animation: blink 0.6s
 /* 横向きのスマホ: 情報を左、大きな数字を右に */
 @media (orientation: landscape) and (max-height: 520px) {
   .deck { max-width: none; }
-  .pane-timer { display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-rows: auto minmax(0, 1fr); gap: 8px 10px; }
-  .deck[data-view='table'] .pane-timer { display: none; }
-  .pane-timer .top { grid-column: 1; }
-  .pane-timer .bottom { grid-column: 2; grid-row: 1; gap: 8px; }
+  .pane-timer { gap: 8px; }
   .display {
-    grid-column: 1 / -1;
     display: grid; grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.4fr); grid-template-rows: auto auto minmax(0, 1fr) auto;
     column-gap: 22px; padding: 12px 18px 14px;
   }
@@ -381,7 +389,7 @@ body[data-level='w1'] .led, body[data-level='over'] .led { animation: blink 0.6s
 @media (min-width: 720px) and (min-height: 520px) {
   .deck { max-width: 1180px; grid-template-columns: minmax(0, 1.5fr) minmax(280px, 1fr); column-gap: 24px; }
   .deck[data-view] .pane-timer, .deck[data-view] .pane-table { display: flex; }
-  #to-table, #back { display: none; }
+  #to-table { display: none; }
   .pane-table .top { justify-content: flex-end; }
   .pane-table .top .ev { display: none; }
 }
@@ -396,5 +404,5 @@ body[data-level='w1'] .led, body[data-level='over'] .led { animation: blink 0.6s
   }
   .pane { padding: 0 var(--gutter); }
   .deck[data-view] .pane-timer, .deck[data-view] .pane-table { display: flex; }
-  #to-table, #back { display: none; }
+  #to-table { display: none; }
 }

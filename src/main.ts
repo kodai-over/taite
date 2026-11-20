@@ -1,7 +1,6 @@
-import '@fontsource/chakra-petch/latin-500.css'
-import '@fontsource/chakra-petch/latin-600.css'
-import '@fontsource/chakra-petch/latin-700.css'
-import '@fontsource/share-tech-mono/latin-400.css'
+import '@fontsource/barlow/latin-500.css'
+import '@fontsource/barlow/latin-600.css'
+import '@fontsource/barlow/latin-700.css'
 import './style.css'
 import { icon } from './icons'
 import { decode } from './data'
@@ -28,7 +27,7 @@ function route() {
       dispose = renderViewer(app, ev, h)
       return
     }
-    app.innerHTML = `<div class="error"><i class="led" aria-hidden="true"></i>
+    app.innerHTML = `<div class="error">
       <h1>Link broken</h1>
       <p>The URL may have been cut off. Ask for the link again.</p>
       <a class="go" href="#">${icon.plus}<span>New timetable</span></a></div>`

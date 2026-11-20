@@ -45,19 +45,19 @@ export function renderViewer(root: HTMLElement, ev: EventData, payload: string):
 
       <div id="stage" class="display" aria-live="polite">
         <div class="readouts">
-          <div class="ro" title="Now">${icon.clock}<span id="clock" class="ro-v" aria-label="Current time">--:--:--</span></div>
-          <div class="ro" title="Set">${icon.headphones}<span id="set" class="ro-v" aria-label="Set time">--:--–--:--</span></div>
+          <div class="ro"><span class="lbl">Time</span><span id="clock" class="ro-v">--:--:--</span></div>
+          <div class="ro"><span class="lbl">Your set</span><span id="set" class="ro-v">--:--–--:--</span></div>
         </div>
         <dl class="lineup">
-          <dt id="np-ic" title="Now playing" aria-label="Now playing">${icon.play}</dt>
+          <dt class="lbl">Now playing</dt>
           <dd id="np" class="lu-name">—</dd>
           <dd id="np-time" class="lu-time"></dd>
-          <dt title="Next" aria-label="Next">${icon.next}</dt>
+          <dt class="lbl">Next</dt>
           <dd id="nx" class="lu-name">—</dd>
           <dd id="nx-time" class="lu-time"></dd>
         </dl>
         <div class="core">
-          <div class="status"><i class="led" aria-hidden="true"></i><span id="label"></span></div>
+          <div class="status" id="label"></div>
           <div id="timer" class="timer">--:--</div>
           <div id="sub" class="sub"></div>
         </div>
@@ -212,17 +212,17 @@ export function renderViewer(root: HTMLElement, ev: EventData, payload: string):
       li.classList.toggle('past', s.end <= t)
       li.classList.toggle('now', s === cur)
       li.classList.toggle('mine', me !== null && s.name === me)
-      li.querySelector('.li-mark')!.innerHTML = s === cur ? icon.play : me !== null && s.name === me ? icon.headphones : ''
+      li.querySelector('.li-mark')!.textContent = s === cur ? 'Now' : me !== null && s.name === me ? 'You' : ''
     })
 
     if (!slots.length) {
-      show({ label: 'NO DATA', sub: 'This link has no sets', timer: '--:--', progress: 0, set: '--:--–--:--', level: '' })
+      show({ label: 'No sets', sub: 'This link has no sets', timer: '--:--', progress: 0, set: '--:--–--:--', level: '' })
       return
     }
 
     if (me === null) {
       // まだ自分を選んでいない（広い画面ではタイマー側にも案内を出す）
-      show({ label: 'NO DJ', sub: '', timer: '--:--', progress: 0, set: '--:--–--:--', level: '' })
+      show({ label: 'No DJ', sub: '', timer: '--:--', progress: 0, set: '--:--–--:--', level: '' })
       return
     }
 
@@ -237,7 +237,7 @@ export function renderViewer(root: HTMLElement, ev: EventData, payload: string):
       if (t < target.start) {
         const wait = target.start - t
         show({
-          label: wait <= SOON_MS ? 'CUE' : 'STANDBY',
+          label: wait <= SOON_MS ? 'Cue' : 'Standby',
           sub: '',
           timer: fmtDur(wait),
           progress: 0,
@@ -247,7 +247,7 @@ export function renderViewer(root: HTMLElement, ev: EventData, payload: string):
       } else if (t < target.end) {
         const remain = target.end - t
         show({
-          label: 'ON AIR',
+          label: 'On air',
           sub: '',
           timer: fmtDur(remain),
           progress: (t - target.start) / (target.end - target.start),
@@ -259,7 +259,7 @@ export function renderViewer(root: HTMLElement, ev: EventData, payload: string):
         const acked = forceAck || ackedSlot === overSlot
         const following = nextAfter(target)
         show({
-          label: 'OVER',
+          label: 'Over',
           // 次のDJは NEXT 行に出るので、最後のセットの時だけ補足する
           sub: acked ? (following ? '' : 'Last set') : 'Tap to stop flashing',
           timer: '+' + fmtDur(t - target.end),
@@ -268,7 +268,7 @@ export function renderViewer(root: HTMLElement, ev: EventData, payload: string):
           level: acked ? 'overAck' : 'over',
         })
       } else {
-        show({ label: 'OFF AIR', sub: '', timer: '--:--', progress: 1, set: rangeOf(target), level: '' })
+        show({ label: 'Off air', sub: '', timer: '--:--', progress: 1, set: rangeOf(target), level: '' })
       }
       return
     }

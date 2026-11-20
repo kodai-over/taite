@@ -6,16 +6,8 @@ const svg = (body: string) =>
   `<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="square" stroke-linejoin="miter" aria-hidden="true">${body}</svg>`
 
 export const icon = {
-  /** 現在時刻 */
-  clock: svg('<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>'),
-  /** 自分のセット */
-  headphones: svg('<path d="M4.5 15v-3a7.5 7.5 0 0 1 15 0v3"/><path d="M4.5 14h3v6h-3zM16.5 14h3v6h-3z"/>'),
   /** 今プレイ中 */
   play: svg('<path d="M8 5.5v13l10-6.5z" fill="currentColor" stroke="none"/>'),
-  /** 次 */
-  next: svg('<path d="M6 6v12l8-6z" fill="currentColor" stroke="none"/><path d="M17.5 6v12"/>'),
-  /** タイムテーブル一覧 */
-  list: svg('<path d="M9 7h11M9 12h11M9 17h11"/><path d="M4.5 7h.5M4.5 12h.5M4.5 17h.5" stroke-width="2.6"/>'),
   /** 戻る */
   back: svg('<path d="M14.5 5.5 8 12l6.5 6.5"/>'),
   /** 編集・複製 */

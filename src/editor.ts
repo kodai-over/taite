@@ -50,7 +50,7 @@ export function renderEditor(root: HTMLElement, init?: EventData): () => void {
     </div>
 
     <ol id="slots" class="slots"></ol>
-    <button id="add" class="add" type="button" aria-label="Add a set" title="Add a set">${icon.plus}</button>
+    <button id="add" class="add" type="button">${icon.plus}<span>Add set</span></button>
     <ul id="msg" class="msg"></ul>
 
     <section class="share" aria-label="Share">

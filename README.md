@@ -4,14 +4,34 @@ DJ Set Timer & Timetable — 自分の出番まで・セット残り時間をス
 
 DJイベントのタイムテーブルをリンクで共有し、各自のスマホで現在時刻・セットの残り時間を表示するPWA。サーバー・DB不要（タイムテーブルはURLの `#` 以降に圧縮して埋め込み）。
 
+## 仕組み
+- 画面（`src/`）と API（`worker/`）を **Cloudflare Workers** 1つで配信する
+- タイムテーブル1つにつき **Durable Object** 1つ。保存と、開いている全員への **WebSocket でのリアルタイム配信** を受け持つ
+- 編集できるかどうかは「編集用の鍵」で判定する（サーバーには鍵のハッシュだけを保存）。ログインはない
+- 作成したタイムテーブルの一覧・出演予定の一覧・最後に受け取った内容は、その端末に保存する（電波が切れても表示とタイマーは続く）
+
+| URL | 誰が使う | できること |
+|---|---|---|
+| `#/` | 全員 | トップ（Your Timetables / Your Gigs / New Timetable） |
+| `#/edit/<id>/<key>` | 作成者（他の人に渡さない） | 編集（自動保存）、DJ用・一般用リンクとQRの発行 |
+| `#/dj/<id>` | DJ | タイムテーブル + 自分のタイマー。開くと Your Gigs に追加 |
+| `#/t/<id>` | 一般客 | タイムテーブルのみ |
+| `#v1.…` | — | 以前の形式の共有リンク（中身がURLに入っている。更新はされない） |
+
 ## 開発
 ```bash
 npm install
-npm run dev      # http://localhost:5173（同一Wi-Fiのスマホからも --host で確認可）
-npm run build    # dist/ に出力
+npm run dev:api   # API（Cloudflare Workers をローカルで実行, 8787番）
+npm run dev       # 画面（Vite。/api は 8787 に中継）
 ```
 
-デバッグ: `?now=2026-11-21T21:55` を付けると現在時刻をずらして表示確認できる。
+デバッグ: `?now=2026-11-21T21:55` で現在時刻をずらせる。開発サーバーでは `mock.html` で状態別の画面を一覧できる（`?me=` / `?view=` / `?ack=` は開発時のみ有効）。
+
+## 公開
+```bash
+npx wrangler login   # 初回のみ（Cloudflare アカウントでログイン）
+npm run deploy       # ビルドして Cloudflare Workers に公開
+```
 
 ## 機能
 - 表示言語: 英語。デザインは全画面共通で「チャコールの地に、罫線で区切った行（左にラベル）」。書体は Barlow（DIN系、数字は等幅）、主な操作ボタンは白。タイマーの数字だけ状態の色で大きく光る。操作はアイコン、ラベルは短い文字
@@ -29,7 +49,5 @@ npm run build    # dist/ に出力
 - 警告: 残り10分 黄 / 5分 橙 / 1分 赤点滅 / 超過 高速点滅（タップで点滅停止。Androidは振動）。動きを減らす設定では点滅せず固定表示
 - 画面スリープ防止（Screen Wake Lock API）、オフライン対応（Service Worker）
 
-## デプロイ（無料）
-Cloudflare Pages / GitHub Pages に `dist/` を配置。ビルドコマンド `npm run build`、出力 `dist`。
 
-公開URL: https://kodai-over.github.io/taite/ （`main` へのpushで GitHub Actions が自動デプロイ）
+以前の公開URL: https://kodai-over.github.io/taite/ （Cloudflare への移行後は新しいURLへ転送する）

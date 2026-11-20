@@ -25,7 +25,9 @@ self.addEventListener('activate', (e) => {
 
 self.addEventListener('fetch', (e) => {
   const req = e.request
-  if (req.method !== 'GET' || new URL(req.url).origin !== location.origin) return
+  const u = new URL(req.url)
+  // API（タイムテーブルの中身・リアルタイム配信）は保存せず、常にサーバーへ
+  if (req.method !== 'GET' || u.origin !== location.origin || u.pathname.startsWith('/api/')) return
 
   if (req.mode === 'navigate') {
     e.respondWith(navigate(req))

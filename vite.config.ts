@@ -32,5 +32,10 @@ function swPrecache(): Plugin {
   }
 }
 
-// base: './' で GitHub Pages / Cloudflare Pages どちらのサブパスでも動く
-export default defineConfig({ base: './', plugins: [swPrecache()] })
+// base: './' でどの公開場所のサブパスでも動く
+export default defineConfig({
+  base: './',
+  plugins: [swPrecache()],
+  // 開発時: /api は手元で動かしている Cloudflare Workers（npm run dev:api, 8787番）へ中継する
+  server: { proxy: { '/api': { target: 'http://127.0.0.1:8787', ws: true } } },
+})

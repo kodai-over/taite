@@ -77,7 +77,7 @@ export function renderViewer(root: HTMLElement, ev: EventData, opts: ViewerOptio
         <span class="ev">${title}</span>
         <span class="sync" hidden></span>
       </header>
-      <p id="hint" class="l-hint">${slots.length ? 'Tap a name to open its timer' : 'This link has no sets'}</p>
+      ${slots.length ? '' : '<p class="l-hint">This link has no sets</p>'}
       <ol id="list" class="list">
         ${slots
           .map(
@@ -110,7 +110,6 @@ export function renderViewer(root: HTMLElement, ev: EventData, opts: ViewerOptio
   const list = $<HTMLOListElement>('list')
   const items = [...list.querySelectorAll<HTMLLIElement>('li')]
   const deck = $('deck')
-  const hint = $('hint')
 
   /** 表示する画面（タイマー / タイムテーブル）を切り替える（広い画面では CSS で両方並べる） */
   const renderView = () => {
@@ -118,7 +117,6 @@ export function renderViewer(root: HTMLElement, ev: EventData, opts: ViewerOptio
     // 画面に固定してスクロールさせない（一覧は内側でスクロール）
     document.body.classList.add('lock')
     whoName.textContent = me ?? '—'
-    hint.hidden = !!me && slots.length > 0
   }
 
   /** そのDJのタイマーを開く。タイムテーブルの上に積むので、端末の「戻る」でも一覧に戻れる */

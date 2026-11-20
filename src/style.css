@@ -138,7 +138,7 @@ input:focus-visible, button:focus-visible, a:focus-visible {
 .wake[data-state='na'] { color: var(--w10); }
 
 .clock {
-  margin: 16px 0 12px;
+  margin: 18px 0 12px;
   text-align: center;
   font-family: var(--mono);
   font-variant-numeric: tabular-nums;
@@ -176,9 +176,31 @@ input:focus-visible, button:focus-visible, a:focus-visible {
 
 .mode {
   display: flex; align-items: center; justify-content: space-between; gap: 10px;
-  margin: 20px 0 8px; font-size: 13px; color: var(--muted);
+  margin: 14px 0 0; padding: 8px 8px 8px 14px;
+  border: 1px solid var(--line); border-radius: 12px;
+  font-size: 14px; color: var(--muted);
 }
-.mode b { color: var(--text); }
+.mode .who { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mode b { color: var(--text); font-size: 16px; }
+
+.list-head { margin: 28px 0 8px; font-size: 13px; color: var(--muted); font-weight: 600; letter-spacing: 0.04em; }
+
+/* ---------- 名前選択 ---------- */
+.picker { padding-top: 8px; }
+.picker h1 { margin: 20px 0 6px; font-size: 30px; }
+.picker p { margin: 0 0 20px; color: var(--muted); font-size: 14px; }
+.pick-list { list-style: none; margin: 0 0 16px; padding: 0; display: grid; gap: 8px; }
+.pick {
+  width: 100%; min-height: 60px;
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 10px 16px;
+  border: 1px solid var(--line); border-radius: 14px;
+  background: var(--surface); cursor: pointer; text-align: left;
+}
+.pick:active { border-color: var(--accent); }
+.pick .n { font-size: 18px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pick .t { flex-shrink: 0; font-family: var(--mono); font-variant-numeric: tabular-nums; color: var(--muted); font-size: 14px; }
+[hidden] { display: none !important; }
 
 .list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
 .list button {
@@ -204,6 +226,9 @@ input:focus-visible, button:focus-visible, a:focus-visible {
 .error p { color: var(--muted); }
 
 /* ---------- 警告レベル ---------- */
+body[data-level='soon'] .card { border-color: var(--accent); }
+body[data-level='soon'] .timer, body[data-level='soon'] .card-label { color: var(--accent); }
+
 body[data-level='w10'] .card { border-color: var(--w10); }
 body[data-level='w10'] .timer { color: var(--w10); }
 body[data-level='w10'] .bar-fill { background: var(--w10); }
@@ -227,7 +252,7 @@ body[data-level='over'] { animation-duration: 0.6s; }
 @media (orientation: landscape) and (max-height: 520px) {
   #app { max-width: none; }
   .viewer { display: grid; grid-template-columns: 1fr 1fr; gap: 0 20px; align-items: start; }
-  .v-head, .mode, .list, .v-foot { grid-column: 2; }
+  .v-head, .mode, .list-head, .list, .v-foot { grid-column: 2; }
   .clock { grid-column: 1; grid-row: 1; margin-top: 0; font-size: clamp(36px, 10vh, 64px); }
   .card { grid-column: 1; grid-row: 2 / span 4; }
   .next { grid-column: 1; }

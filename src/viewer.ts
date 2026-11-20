@@ -2,11 +2,14 @@ import { resolve, type EventData, type ResolvedSlot } from './data'
 import { esc, fmtClock, fmtDur, fmtHM, now, store } from './util'
 import { initWakeLock } from './wakelock'
 
-/** 警告レベル: 10分前 / 5分前 / 1分前 / 超過 */
-type Level = '' | 'w10' | 'w5' | 'w1' | 'over'
+/** 警告レベル: 出番直前 / 残り10分 / 5分 / 1分 / 超過 */
+type Level = '' | 'soon' | 'w10' | 'w5' | 'w1' | 'over'
 
 const MIN = 60_000
 const OVER_SHOW_MS = 30 * MIN // 自分のセット終了後、超過表示を続ける時間
+const SOON_MS = 10 * MIN // 出番の何分前から「まもなく出番」にするか
+/** 「DJではない（全体表示）」を選んだ時の保存値 */
+const ALL = '__all__'
 
 const levelOf = (remain: number): Level =>
   remain <= 1 * MIN ? 'w1' : remain <= 5 * MIN ? 'w5' : remain <= 10 * MIN ? 'w10' : ''
@@ -14,15 +17,44 @@ const levelOf = (remain: number): Level =>
 export function renderViewer(root: HTMLElement, ev: EventData, payload: string): () => void {
   const slots = resolve(ev)
   const meKey = `taite:me:${ev.d}:${ev.t}`
-  let me: string | null = store.get(meKey)
-  if (me && !slots.some((s) => s.name === me)) me = null
+  const saved = store.get(meKey)
+  // null = まだ選んでいない（名前選択画面を出す）, ALL = 全体表示, それ以外 = DJ名
+  let me: string | null = saved === ALL || slots.some((s) => s.name === saved) ? saved : null
+
+  // DJ名ごとの出番時刻（同じDJが複数枠ある場合はまとめる）
+  const djs = [...new Set(slots.map((s) => s.name))].map((name) => ({
+    name,
+    times: slots
+      .filter((s) => s.name === name)
+      .map((s) => `${fmtHM(s.start)}–${fmtHM(s.end)}`)
+      .join(' / '),
+  }))
 
   root.innerHTML = `
-  <div class="viewer">
+  <section id="picker" class="picker" hidden>
+    <div class="v-title">${esc(ev.t || 'TAITE')}</div>
+    <h1>あなたは誰？</h1>
+    <p>自分の名前を選ぶと、出番までの時間とセットの残り時間を表示します。</p>
+    <ul class="pick-list">
+      ${djs
+        .map(
+          (d) => `
+        <li><button type="button" class="pick" data-name="${esc(d.name)}">
+          <span class="n">${esc(d.name)}</span><span class="t">${d.times}</span>
+        </button></li>`,
+        )
+        .join('')}
+    </ul>
+    <button type="button" id="pick-all" class="btn ghost wide">DJではない（全体のタイテを見る）</button>
+  </section>
+
+  <div id="main" class="viewer" hidden>
     <header class="v-head">
       <div class="v-title">${esc(ev.t || 'TAITE')}</div>
       <button id="wake" class="wake" type="button"></button>
     </header>
+
+    <div id="mode" class="mode"></div>
 
     <div id="clock" class="clock" aria-label="現在時刻">--:--:--</div>
 
@@ -36,8 +68,7 @@ export function renderViewer(root: HTMLElement, ev: EventData, payload: string):
 
     <div id="next" class="next"></div>
 
-    <div id="mode" class="mode"></div>
-
+    <h2 class="list-head">タイムテーブル</h2>
     <ol id="list" class="list">
       ${slots
         .map(
@@ -69,12 +100,18 @@ export function renderViewer(root: HTMLElement, ev: EventData, payload: string):
   const mode = $('mode')
   const list = $<HTMLOListElement>('list')
   const items = [...list.querySelectorAll<HTMLLIElement>('li')]
+  const picker = $('picker')
+  const main = $('main')
+
+  const isDj = () => me !== null && me !== ALL
 
   const renderMode = () => {
-    mode.innerHTML = me
-      ? `<span>DJモード: <b>${esc(me)}</b></span><button type="button" id="unme" class="btn small">全体表示に戻す</button>`
-      : `<span>自分の名前をタップすると、自分のセット専用の表示になります</span>`
-    mode.querySelector('#unme')?.addEventListener('click', () => setMe(null))
+    picker.hidden = me !== null
+    main.hidden = me === null
+    mode.innerHTML = isDj()
+      ? `<span class="who"><b>${esc(me!)}</b></span><button type="button" id="change" class="btn small">変更</button>`
+      : `<span class="who">全体表示</span><button type="button" id="change" class="btn small">自分の名前を選ぶ</button>`
+    mode.querySelector('#change')!.addEventListener('click', () => setMe(null))
   }
 
   const setMe = (name: string | null) => {
@@ -82,14 +119,19 @@ export function renderViewer(root: HTMLElement, ev: EventData, payload: string):
     store.set(meKey, name)
     renderMode()
     tick()
-    window.scrollTo({ top: 0, behavior: 'smooth' })
+    window.scrollTo({ top: 0 })
   }
 
+  picker.addEventListener('click', (e) => {
+    const b = (e.target as HTMLElement).closest<HTMLButtonElement>('button.pick')
+    if (b) setMe(b.dataset.name!)
+  })
+  $('pick-all').addEventListener('click', () => setMe(ALL))
+
+  // 一覧のDJをタップするとそのDJの表示に切り替え
   list.addEventListener('click', (e) => {
     const li = (e.target as HTMLElement).closest<HTMLLIElement>('li')
-    if (!li) return
-    const n = li.dataset.name!
-    setMe(me === n ? null : n)
+    if (li) setMe(li.dataset.name!)
   })
 
   let lastLevel: Level = ''
@@ -112,7 +154,7 @@ export function renderViewer(root: HTMLElement, ev: EventData, payload: string):
     next.textContent = o.next
     document.body.dataset.level = o.level
     const canVibrate = navigator.userActivation?.hasBeenActive ?? true // 未タップ時はブラウザが拒否する
-    if (canVibrate && o.level !== lastLevel && (o.level === 'w5' || o.level === 'w1' || o.level === 'over')) {
+    if (canVibrate && o.level !== lastLevel && ['soon', 'w5', 'w1', 'over'].includes(o.level)) {
       navigator.vibrate?.([200, 100, 200])
     }
     lastLevel = o.level
@@ -133,8 +175,8 @@ export function renderViewer(root: HTMLElement, ev: EventData, payload: string):
       const s = slots[k]
       li.classList.toggle('past', s.end <= t)
       li.classList.toggle('now', s === cur)
-      li.classList.toggle('mine', s.name === me)
-      li.querySelector('.badge')!.textContent = s === cur ? 'NOW' : s.name === me ? 'YOU' : ''
+      li.classList.toggle('mine', isDj() && s.name === me)
+      li.querySelector('.badge')!.textContent = s === cur ? 'NOW' : isDj() && s.name === me ? 'YOU' : ''
     })
 
     if (!slots.length) {
@@ -142,25 +184,28 @@ export function renderViewer(root: HTMLElement, ev: EventData, payload: string):
       return
     }
 
-    if (me) {
+    if (me === null) return // 名前選択中
+
+    if (isDj()) {
       const mine = slots.filter((s) => s.name === me)
       const target = mine.find((s) => t < s.end) ?? mine[mine.length - 1]
       const rangeText = `${fmtHM(target.start)} 〜 ${fmtHM(target.end)}`
       if (t < target.start) {
+        const wait = target.start - t
         show({
-          label: '出番まで',
-          name: target.name,
-          timer: fmtDur(target.start - t),
+          label: wait <= SOON_MS ? 'まもなく出番' : '出番まで',
+          name: `出番 ${rangeText}`,
+          timer: fmtDur(wait),
           progress: 0,
-          range: rangeText,
+          range: `セット ${Math.round((target.end - target.start) / MIN)}分`,
           next: cur ? `いまプレイ中: ${cur.name}（残り ${fmtDur(cur.end - t)}）` : '',
-          level: '',
+          level: wait <= SOON_MS ? 'soon' : '',
         })
       } else if (t < target.end) {
         const remain = target.end - t
         show({
           label: '残り時間',
-          name: target.name,
+          name: 'ON AIR',
           timer: fmtDur(remain),
           progress: (t - target.start) / (target.end - target.start),
           range: rangeText,
@@ -170,7 +215,7 @@ export function renderViewer(root: HTMLElement, ev: EventData, payload: string):
       } else if (t - target.end < OVER_SHOW_MS) {
         show({
           label: '終了時刻を超過',
-          name: target.name,
+          name: '次のDJへ交代してください',
           timer: '+' + fmtDur(t - target.end),
           progress: 1,
           range: rangeText,
@@ -178,7 +223,7 @@ export function renderViewer(root: HTMLElement, ev: EventData, payload: string):
           level: 'over',
         })
       } else {
-        show({ label: 'お疲れさまでした', name: target.name, timer: '--:--', progress: 1, range: rangeText, next: '', level: '' })
+        show({ label: 'セット終了', name: 'お疲れさまでした', timer: '--:--', progress: 1, range: rangeText, next: '', level: '' })
       }
       return
     }

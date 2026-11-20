@@ -34,8 +34,12 @@ export function live(
     onData?.(snap.data)
   }
 
-  const message = (title: string, text: string) => {
-    root.innerHTML = `<div class="error"><h1>${title}</h1><p>${text}</p><a class="go" href="#/">${icon.home}<span>All Timetables</span></a></div>`
+  const message = (title: string, text: string, retry = false) => {
+    root.innerHTML = `<div class="error"><h1>${title}</h1><p>${text}</p>${
+      retry ? '<button type="button" class="go" data-retry>Try Again</button>' : ''
+    }<a class="go${retry ? ' sub' : ''}" href="#/">${icon.home}<span>All Timetables</span></a></div>`
+    // 電波が戻ったら開き直せるように（ハッシュはそのままなので、読み込み直すと同じタイムテーブルを開く）
+    root.querySelector('[data-retry]')?.addEventListener('click', () => location.reload())
   }
 
   // 削除されたタイムテーブル: 端末の一覧・キャッシュからも消す
@@ -61,7 +65,7 @@ export function live(
       }
     })
     .catch(() => {
-      if (!cached) message("Can't load the timetable", 'Check your connection and try again.')
+      if (!cached) message("Can't load the timetable", 'Check your connection and try again.', true)
     })
 
   const unsubscribe = subscribe(

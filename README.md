@@ -36,7 +36,7 @@ npx wrangler login   # 初回のみ（Cloudflare アカウントでログイン�
 npm run deploy       # ビルドして Cloudflare Workers に公開
 ```
 
-main へのマージでは Cloudflare に公開されない（GitHub Pages は以前のURLの転送ページだけ）。マージしたら `npm run deploy` も実行する。
+main へのマージでは Cloudflare に公開されない（GitHub Pages は以前のURLの転送ページだけ）。**先に `npm run deploy` で公開して新しいURLで動作を確認してから、main にマージする**（逆の順だと、以前のURLから転送された先が古い版になる）。
 
 ## 機能
 - 表示言語: 英語。デザインは全画面共通で「チャコールの地に、罫線で区切った行（左にラベル）」。書体は Barlow（DIN系、数字は等幅）、主な操作ボタンは白。タイマーの数字だけ状態の色で大きく光る。操作はアイコン、ラベルは短い文字

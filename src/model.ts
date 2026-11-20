@@ -21,7 +21,8 @@ export interface EventData {
 /** 1つのタイムテーブルに入れられる量の上限（サーバーに保存する時の検査にも使う） */
 export const LIMITS = { title: 80, name: 60, slots: 60 }
 
-const TIME = /^([01]\d|2[0-3]):[0-5]\d$/
+// 時は1桁も受け付け（手で作った旧リンクの 9:30 など）、保存・表示は HH:MM にそろえる
+const TIME = /^([01]?\d|2[0-3]):([0-5]\d)$/
 
 /** 外から来たデータ（リンク・保存した下書き）を EventData の形にそろえる。形が違えば null */
 export function normalize(o: unknown): EventData | null {
@@ -36,7 +37,10 @@ export function normalize(o: unknown): EventData | null {
       .filter((x: unknown) => Array.isArray(x))
       .slice(0, LIMITS.slots)
       .map((x: unknown[]) => {
-        const t = (v: unknown) => (TIME.test(String(v ?? '')) ? String(v) : '')
+        const t = (v: unknown) => {
+          const m = TIME.exec(String(v ?? '').trim())
+          return m ? `${m[1].padStart(2, '0')}:${m[2]}` : ''
+        }
         return [t(x[0]), t(x[1]), String(x[2] ?? '').slice(0, LIMITS.name)] as Slot
       }),
   }

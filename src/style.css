@@ -292,6 +292,8 @@ body[data-level='over'] .display { cursor: pointer; }
   font-size: 18px; font-weight: 700;
 }
 .go .ic { width: 18px; height: 18px; }
+button.go { border: 0; }
+.go.sub { margin-top: 10px; background: var(--raised); color: var(--ink); }
 .go.disabled, .ibtn:disabled { opacity: 0.35; pointer-events: none; }
 .danger {
   width: 100%; min-height: 52px; margin-top: 12px; border: 0; border-radius: var(--r);

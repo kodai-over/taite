@@ -111,7 +111,12 @@ function route() {
       .catch(() => {
         if (gone) return
         if (cached) open(cached.data)
-        else show("Can't load the timetable", 'Check your connection and try again.')
+        else
+          show(
+            "Can't load the timetable",
+            'Check your connection and try again.',
+            `<button type="button" class="go" onclick="location.reload()">Try Again</button><a class="go sub" href="#/">${icon.home}<span>All Timetables</span></a>`,
+          )
       })
     return
   }

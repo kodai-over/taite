@@ -337,6 +337,8 @@ body[data-level='over'] .display { cursor: pointer; }
   mask-image: linear-gradient(transparent, #000 30%, #000 70%, transparent);
 }
 .wheel::-webkit-scrollbar { display: none; }
+@media (pointer: fine) { .wheel { cursor: grab; } }
+.wheel.dragging { cursor: grabbing; scroll-snap-type: none; user-select: none; }
 .wheel:focus-visible { outline: none; }
 .wheel-item {
   height: 44px; scroll-snap-align: center;

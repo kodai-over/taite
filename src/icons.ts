@@ -16,8 +16,6 @@ export const icon = {
   next: svg('<path d="M6 6v12l8-6z" fill="currentColor" stroke="none"/><path d="M17.5 6v12"/>'),
   /** タイムテーブル一覧 */
   list: svg('<path d="M9 7h11M9 12h11M9 17h11"/><path d="M4.5 7h.5M4.5 12h.5M4.5 17h.5" stroke-width="2.6"/>'),
-  /** 自分を選び直す */
-  swap: svg('<path d="M7 7h12l-3-3M17 17H5l3 3"/>'),
   /** 戻る */
   back: svg('<path d="M14.5 5.5 8 12l6.5 6.5"/>'),
   /** 編集・複製 */
@@ -30,8 +28,6 @@ export const icon = {
   check: svg('<path d="M5 12.5l4.5 4.5L19 7.5"/>'),
   share: svg('<path d="M12 4v11M7.5 8.5 12 4l4.5 4.5"/><path d="M5 13v7h14v-7"/>'),
   calendar: svg('<path d="M4.5 6.5h15v13h-15zM4.5 10.5h15M8.5 4v4M15.5 4v4"/>'),
-  /** 全員（DJ以外） */
-  all: svg('<path d="M4.5 4.5h6v6h-6zM13.5 4.5h6v6h-6zM4.5 13.5h6v6h-6zM13.5 13.5h6v6h-6z"/>'),
   /** 画面を消さない（点灯中） */
   awake: svg('<circle cx="12" cy="12" r="3.5"/><path d="M12 3v2.5M12 18.5V21M3 12h2.5M18.5 12H21M5.6 5.6l1.8 1.8M16.6 16.6l1.8 1.8M5.6 18.4l1.8-1.8M16.6 7.4l1.8-1.8"/>'),
   /** 画面を消さない（オフ） */

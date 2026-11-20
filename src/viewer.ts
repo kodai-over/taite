@@ -8,8 +8,9 @@ type Level = '' | 'soon' | 'w10' | 'w5' | 'w1' | 'over' | 'overAck'
 const MIN = 60_000
 const OVER_SHOW_MS = 30 * MIN // 自分のセット終了後、超過表示を続ける時間（延長してプレイ中の場合もあるため長めに。点滅はタップで止められる）
 const SOON_MS = 10 * MIN // 出番の何分前から「まもなく出番」にするか
-/** 「DJではない（全体表示）」を選んだ時の保存値 */
-const ALL = '__all__'
+const LONG_PRESS_MS = 500 // 広い画面でDJを切り替える長押しの長さ
+/** タイマーとタイムテーブルを左右に並べる広い画面か（style.css のメディアクエリと揃える） */
+const WIDE_QUERY = '(min-width: 720px) and (min-height: 520px), (horizontal-viewport-segments: 2)'
 
 const levelOf = (remain: number): Level =>
   remain <= 1 * MIN ? 'w1' : remain <= 5 * MIN ? 'w5' : remain <= 10 * MIN ? 'w10' : ''
@@ -19,56 +20,26 @@ export function renderViewer(root: HTMLElement, ev: EventData, payload: string):
   const title = esc(ev.t || 'TAITE')
   const meKey = `taite:me:${ev.d}:${ev.t}`
   const saved = store.get(meKey)
-  // null = まだ選んでいない（名前選択画面を出す）, ALL = 全体表示, それ以外 = DJ名
-  let me: string | null = saved === ALL || slots.some((s) => s.name === saved) ? saved : null
-  // 枠が1つもない（壊れたリンク等）なら名前選択を飛ばし、全体表示でエラー文言を出す
-  if (!slots.length) me = ALL
+  // null = まだ選んでいない（タイムテーブルから選んでもらう）、それ以外 = 自分のDJ名
+  let me: string | null = slots.some((s) => s.name === saved) ? saved : null
   let showTable = false
 
   // 確認用（mock.html）: URLのパラメータで表示状態を固定する。保存はしない
-  //   ?me=none（名前選択） / all（全体表示） / DJ名、?view=table、?ack=1（超過の点滅停止済み）
+  //   ?me=none（未選択） / DJ名、?view=table、?ack=1（超過の点滅停止済み）
   const q = new URLSearchParams(location.search)
   const qMe = q.get('me')
-  if (qMe !== null) me = qMe === 'none' ? null : qMe === 'all' ? ALL : qMe
+  if (qMe !== null) me = qMe === 'none' ? null : qMe
   if (q.get('view') === 'table') showTable = true
   const forceAck = q.get('ack') === '1'
 
-  // DJ名ごとの出番時刻（同じDJが複数枠ある場合はまとめる）
-  const djs = [...new Set(slots.map((s) => s.name))].map((name) => ({
-    name,
-    times: slots
-      .filter((s) => s.name === name)
-      .map((s) => `${fmtHM(s.start)}–${fmtHM(s.end)}`)
-      .join(' / '),
-  }))
-
   root.innerHTML = `
-  <section id="picker" class="picker" hidden>
-    <span class="ev">${title}</span>
-    <h1 class="pk-q">Who are you?</h1>
-    <ul class="pick-list">
-      ${djs
-        .map(
-          (d) => `
-        <li><button type="button" class="pick" data-name="${esc(d.name)}">
-          <span class="pk-name">${esc(d.name)}</span><span class="pk-time">${d.times}</span>
-        </button></li>`,
-        )
-        .join('')}
-    </ul>
-    <button type="button" id="pick-all" class="pick pick-all" aria-label="I'm not a DJ — show everyone">
-      ${icon.all}<span class="pk-name">Everyone</span>
-    </button>
-  </section>
-
-  <div id="deck" class="deck" hidden>
+  <div id="deck" class="deck">
     <section class="pane pane-timer">
       <header class="top">
         <div class="who">
           <span class="ev">${title}</span>
           <span id="who-name" class="me"></span>
         </div>
-        <button type="button" id="change" class="ibtn" aria-label="Switch DJ" title="Switch DJ">${icon.swap}</button>
       </header>
 
       <div id="stage" class="display" aria-live="polite">
@@ -104,14 +75,17 @@ export function renderViewer(root: HTMLElement, ev: EventData, payload: string):
         <span class="ev">${title}</span>
         <a class="ibtn" href="#e.${payload}" aria-label="Edit or duplicate this timetable" title="Edit / duplicate">${icon.edit}</a>
       </header>
+      <p id="hint" class="l-hint">${slots.length ? 'Tap your name' : 'This link has no sets'}</p>
       <ol id="list" class="list">
         ${slots
           .map(
             (s) => `
-          <li data-i="${s.i}" data-name="${esc(s.name)}">
-            <span class="li-time">${fmtHM(s.start)}–${fmtHM(s.end)}</span>
-            <span class="li-name">${esc(s.name)}</span>
-            <span class="li-mark" aria-hidden="true"></span>
+          <li data-i="${s.i}">
+            <button type="button" class="row" data-name="${esc(s.name)}">
+              <span class="li-time">${fmtHM(s.start)}–${fmtHM(s.end)}</span>
+              <span class="li-name">${esc(s.name)}</span>
+              <span class="li-mark" aria-hidden="true"></span>
+            </button>
           </li>`,
           )
           .join('')}
@@ -127,47 +101,72 @@ export function renderViewer(root: HTMLElement, ev: EventData, payload: string):
   const bar = $('bar')
   const setEl = $('set')
   const whoName = $('who-name')
-  const npIc = $('np-ic')
   const np = $('np')
   const npTime = $('np-time')
   const nx = $('nx')
   const nxTime = $('nx-time')
-  const change = $<HTMLButtonElement>('change')
   const stage = $('stage')
   const list = $<HTMLOListElement>('list')
   const items = [...list.querySelectorAll<HTMLLIElement>('li')]
-  const picker = $('picker')
   const deck = $('deck')
+  const hint = $('hint')
+  const back = $('back')
+  const wide = matchMedia(WIDE_QUERY)
 
-  const isDj = () => me !== null && me !== ALL
-
-  /** 表示する画面（名前選択 / タイマー / タイムテーブル）を切り替える */
+  /** 表示する画面（タイマー / タイムテーブル）を切り替える */
   const renderView = () => {
-    picker.hidden = me !== null
-    deck.hidden = me === null
-    // 狭い画面ではタイマーとタイムテーブルを切り替える（広い画面では CSS で両方並べる）
-    deck.dataset.view = showTable ? 'table' : 'timer'
-    // タイマーは画面に固定してスクロールさせない
-    document.body.classList.toggle('lock', !deck.hidden)
-    whoName.textContent = isDj() ? me! : 'Everyone'
-    // 全体表示では中央がそのまま今プレイ中のDJなので、NEXT だけ出す
-    for (const el of [npIc, np, npTime]) el.hidden = !isDj()
+    // 狭い画面ではタイマーとタイムテーブルを切り替える（広い画面では CSS で両方並べる）。
+    // 自分をまだ選んでいなければタイムテーブルを出す
+    deck.dataset.view = showTable || me === null ? 'table' : 'timer'
+    // 画面に固定してスクロールさせない（一覧は内側でスクロール）
+    document.body.classList.add('lock')
+    whoName.textContent = me ?? '—'
+    hint.hidden = me !== null && slots.length > 0
+    back.hidden = me === null
   }
 
-  const setMe = (name: string | null) => {
+  /** 自分のDJを決めてタイマーへ */
+  const selectMe = (name: string) => {
     me = name
     store.set(meKey, name)
+    if ((history.state as { taite?: string } | null)?.taite === 'table') {
+      history.back() // ☰ から開いた一覧なら履歴を戻してタイマーへ（popstate で再描画）
+    } else {
+      showTable = false
+    }
     renderView()
     tick()
-    window.scrollTo({ top: 0 })
   }
 
-  picker.addEventListener('click', (e) => {
-    const b = (e.target as HTMLElement).closest<HTMLButtonElement>('button.pick')
-    if (b) setMe(b.dataset.name!)
+  // 一覧の名前で自分を選ぶ。スマホは「一覧を開いてタップ」なので意図した操作とみなしてタップで切り替える。
+  // 一覧が常に見えている広い画面では、暗いブースでの誤タップを防ぐため長押しで切り替える（未選択時はタップで可）
+  let pressTimer = 0
+  let longPressed = false
+  const needsLongPress = () => wide.matches && me !== null
+  list.addEventListener('pointerdown', (e) => {
+    const b = (e.target as HTMLElement).closest<HTMLButtonElement>('button.row')
+    if (!b || !needsLongPress()) return
+    longPressed = false
+    b.classList.add('pressing')
+    pressTimer = window.setTimeout(() => {
+      longPressed = true
+      b.classList.remove('pressing')
+      navigator.vibrate?.(30)
+      selectMe(b.dataset.name!)
+    }, LONG_PRESS_MS)
   })
-  $('pick-all').addEventListener('click', () => setMe(ALL))
-  change.addEventListener('click', () => setMe(null))
+  const cancelPress = () => {
+    clearTimeout(pressTimer)
+    list.querySelectorAll('.pressing').forEach((el) => el.classList.remove('pressing'))
+  }
+  for (const type of ['pointerup', 'pointerleave', 'pointercancel']) list.addEventListener(type, cancelPress)
+  list.addEventListener('click', (e) => {
+    const b = (e.target as HTMLElement).closest<HTMLButtonElement>('button.row')
+    if (!b || needsLongPress() || longPressed) return
+    selectMe(b.dataset.name!)
+  })
+  // 長押しでブラウザのメニューが出ないように
+  list.addEventListener('contextmenu', (e) => e.preventDefault())
 
   // タイムテーブル画面は履歴に積み、端末の「戻る」でもタイマーに戻れるようにする
   $('to-table').addEventListener('click', () => {
@@ -182,8 +181,6 @@ export function renderViewer(root: HTMLElement, ev: EventData, payload: string):
     renderView()
   }
   window.addEventListener('popstate', onPop)
-
-  // 一覧は表示のみ。暗いブースでの誤タップで他のDJに切り替わらないよう、切り替えは「Change」ボタンからだけにする
 
   let lastLevel: Level = ''
   /** 超過の点滅をタップで止めた枠（同じ枠の間は点滅させない） */
@@ -248,8 +245,8 @@ export function renderViewer(root: HTMLElement, ev: EventData, payload: string):
       const s = slots[k]
       li.classList.toggle('past', s.end <= t)
       li.classList.toggle('now', s === cur)
-      li.classList.toggle('mine', isDj() && s.name === me)
-      li.querySelector('.li-mark')!.innerHTML = s === cur ? icon.play : isDj() && s.name === me ? icon.headphones : ''
+      li.classList.toggle('mine', me !== null && s.name === me)
+      li.querySelector('.li-mark')!.innerHTML = s === cur ? icon.play : me !== null && s.name === me ? icon.headphones : ''
     })
 
     if (!slots.length) {
@@ -258,13 +255,12 @@ export function renderViewer(root: HTMLElement, ev: EventData, payload: string):
     }
 
     if (me === null) {
-      // 名前選択中は警告表示を解除
-      delete document.body.dataset.level
-      lastLevel = ''
+      // まだ自分を選んでいない（広い画面ではタイマー側にも案内を出す）
+      show({ label: 'NO DJ', sub: '', timer: '--:--', progress: 0, set: '--:--–--:--', level: '' })
       return
     }
 
-    if (isDj()) {
+    {
       const mine = slots.filter((s) => s.name === me)
       let target = mine.find((s) => t < s.end) ?? mine[mine.length - 1]
       // 同じDJの枠が複数ある場合、直前の枠の終了から OVER_SHOW_MS 以内で、次の枠が「まもなく出番」より先なら、
@@ -311,29 +307,6 @@ export function renderViewer(root: HTMLElement, ev: EventData, payload: string):
       return
     }
 
-    overSlot = null
-    if (cur) {
-      const remain = cur.end - t
-      show({
-        label: 'ON AIR',
-        sub: cur.name,
-        timer: fmtDur(remain),
-        progress: (t - cur.start) / (cur.end - cur.start),
-        set: rangeOf(cur),
-        level: levelOf(remain),
-      })
-    } else if (upcoming) {
-      show({
-        label: 'STANDBY',
-        sub: upcoming.name,
-        timer: fmtDur(upcoming.start - t),
-        progress: 0,
-        set: rangeOf(upcoming),
-        level: '',
-      })
-    } else {
-      show({ label: 'END', sub: '', timer: '--:--', progress: 1, set: '--:--–--:--', level: '' })
-    }
   }
 
   renderView()

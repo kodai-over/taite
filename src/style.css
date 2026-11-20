@@ -88,31 +88,6 @@ a { text-decoration: none; }
 }
 
 /* ==========================================================================
-   名前選択
-   ========================================================================== */
-.picker {
-  max-width: 560px; margin: 0 auto;
-  padding: max(20px, env(safe-area-inset-top)) var(--gutter) max(24px, env(safe-area-inset-bottom));
-}
-.pk-q { margin: 6px 0 20px; font-size: clamp(28px, 8vw, 36px); font-weight: 700; line-height: 1.1; letter-spacing: -0.01em; }
-.pick-list { list-style: none; margin: 0 0 10px; padding: 0; display: grid; gap: 8px; }
-.pick {
-  width: 100%; min-height: 60px;
-  display: flex; align-items: center; gap: 12px;
-  padding: 10px 18px; border: 0;
-  background: var(--panel);
-  clip-path: var(--chamfer);
-  text-align: left;
-  transition: background-color 0.15s;
-}
-.pick:active { background: var(--panel-2); }
-.pick:focus-visible { outline: none; box-shadow: inset 0 0 0 2px var(--cyan); }
-.pk-name { flex: 1; min-width: 0; font-size: 18px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.pk-time { font-family: var(--f-num); font-size: 15px; color: var(--cyan); white-space: nowrap; }
-.pick-all { background: color-mix(in srgb, var(--panel) 45%, transparent); color: var(--dim); }
-.pick-all .pk-name { font-size: 15px; font-weight: 600; }
-
-/* ==========================================================================
    タイマー / タイムテーブル（deck = 端末の画面全体に固定）
    ========================================================================== */
 .deck {
@@ -217,20 +192,31 @@ a { text-decoration: none; }
 /* --- タイムテーブル --- */
 .pane-table .top .ev { flex: 1; text-align: center; }
 .list { list-style: none; margin: 0; padding: 0 0 8px; overflow-y: auto; display: grid; align-content: start; gap: 6px; }
-.list li {
+.l-hint { display: flex; align-items: center; gap: 10px; margin: 2px 4px 2px; color: var(--cyan); font-weight: 600; }
+.l-hint::before { content: ''; width: 8px; height: 8px; transform: rotate(45deg); background: var(--cyan); box-shadow: 0 0 8px var(--cyan); }
+.list .row {
+  width: 100%;
   display: grid; grid-template-columns: auto minmax(0, 1fr) 22px; align-items: center; gap: 14px;
-  min-height: 52px; padding: 8px 16px;
+  min-height: 56px; padding: 8px 16px; border: 0;
   background: var(--panel);
   clip-path: var(--chamfer); --c: 8px;
+  text-align: left;
+  -webkit-user-select: none; user-select: none; -webkit-touch-callout: none;
+  transition: background-color 0.15s;
 }
+.list .row:active { background: var(--panel-2); }
+.list .row:focus-visible { outline: none; box-shadow: inset 0 0 0 2px var(--cyan); }
+/* 長押し中: 左から右へ光が満ちていく */
+.list .row.pressing { background: linear-gradient(90deg, color-mix(in srgb, var(--magenta) 28%, var(--panel)) 0 0) no-repeat left / 0% 100%, var(--panel); animation: press 0.5s linear forwards; }
+@keyframes press { to { background-size: 100% 100%, auto; } }
 .li-time { font-family: var(--f-num); font-size: 15px; color: var(--dim); }
 .li-name { font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .li-mark { color: var(--cyan); }
 .li-mark .ic { width: 18px; height: 18px; }
 .list li.past { opacity: 0.38; }
-.list li.now { background: color-mix(in srgb, var(--cyan) 14%, var(--panel)); }
+.list li.now .row { background: color-mix(in srgb, var(--cyan) 14%, var(--panel)); }
 .list li.now .li-time { color: var(--cyan); }
-.list li.mine:not(.now) { box-shadow: inset 3px 0 0 var(--magenta); }
+.list li.mine:not(.now) .row { box-shadow: inset 3px 0 0 var(--magenta); }
 .list li.mine:not(.now) .li-mark { color: var(--magenta); }
 
 /* ==========================================================================
@@ -243,8 +229,9 @@ body[data-level='w1'],
 body[data-level='over'],
 body[data-level='overAck'] { --sig: var(--red); }
 .display[data-state='off-air'],
-.display[data-state='end'],
-.display[data-state='no-data'] { --sig: var(--dim); }
+.display[data-state='no-dj'] { --sig: var(--dim); }
+/* 自分を選ぶ前は数字を控えめに（一覧の「Tap your name」に目を向けてもらう） */
+.display[data-state='no-dj'] .timer { opacity: 0.25; text-shadow: none; }
 
 body[data-level='w1'], body[data-level='over'] { animation: flash 1s steps(1, end) infinite; }
 body[data-level='over'] { animation-duration: 0.6s; }

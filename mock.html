@@ -73,13 +73,13 @@
 
       const groups = [
         {
-          title: '名前選択とタイマー',
+          title: 'タイマー',
           items: [
-            { name: '名前選択', note: 'リンクを開いた最初の画面', src: url({ now: '2026-11-21T22:40:00', me: 'none' }) },
+            { name: '最初の画面（タイムテーブル）', note: '自分の名前をタップ', src: url({ now: '2026-11-21T22:40:00', me: 'none' }) },
             { name: '出番まで', note: '出番の約1時間前', src: url({ now: '2026-11-21T22:00:00', me: 'DJ Ren' }) },
-            { name: 'まもなく出番', note: '出番10分前から緑', src: url({ now: '2026-11-21T22:52:00', me: 'DJ Ren' }) },
+            { name: 'まもなく出番', note: 'CUE（10分前からマゼンタ）', src: url({ now: '2026-11-21T22:52:00', me: 'DJ Ren' }) },
             { name: 'プレイ中', note: '残り10分より前', src: url({ now: '2026-11-21T23:40:00', me: 'DJ Ren' }) },
-            { name: '残り10分', note: '黄色', src: url({ now: '2026-11-22T00:21:00', me: 'DJ Ren' }) },
+            { name: '残り10分', note: 'アンバー', src: url({ now: '2026-11-22T00:21:00', me: 'DJ Ren' }) },
             { name: '残り5分', note: 'オレンジ', src: url({ now: '2026-11-22T00:26:00', me: 'DJ Ren' }) },
             { name: '残り1分', note: '画面全体が赤く点滅', src: url({ now: '2026-11-22T00:29:20', me: 'DJ Ren' }) },
             { name: '超過', note: '速い点滅（タップで停止）', src: url({ now: '2026-11-22T00:31:10', me: 'DJ Ren' }) },
@@ -89,13 +89,13 @@
         {
           title: 'その他の画面',
           items: [
-            { name: 'タイムテーブル画面', note: '「Timetable」ボタンの先', src: url({ now: '2026-11-21T23:40:00', me: 'DJ Ren', view: 'table' }) },
-            { name: '全体表示', note: '名前選択で「I\'m not a DJ」', src: url({ now: '2026-11-21T23:40:00', me: 'all' }) },
+            { name: 'タイムテーブル（選択後）', note: '☰ の先。名前タップで切り替え', src: url({ now: '2026-11-21T23:40:00', me: 'DJ Ren', view: 'table' }) },
             { name: '作成画面', note: '※ 下書きはこのブラウザに保存されます', src: './' },
             { name: '小さい画面（iPhone SE）', note: '375×667', src: url({ now: '2026-11-22T00:26:00', me: 'DJ Ren' }), size: small },
             { name: '横向き', note: '812×375（ブースに立てかける想定）', src: url({ now: '2026-11-22T00:21:00', me: 'DJ Ren' }), size: land },
             { name: 'iPhone Duo（閉じた状態・外側）', note: '細い画面', src: url({ now: '2026-11-21T22:52:00', me: 'DJ Ren' }), size: duoOuter },
-            { name: 'iPhone Duo（開いた状態・内側）', note: 'タイマーとタイムテーブルを左右に', src: url({ now: '2026-11-22T00:21:00', me: 'DJ Ren' }), size: duoInner },
+            { name: 'iPhone Duo（内側・未選択）', note: '最初はタップで選べる', src: url({ now: '2026-11-22T00:21:00', me: 'none' }), size: duoInner },
+            { name: 'iPhone Duo（開いた状態・内側）', note: '左右に並べる。切り替えは長押し', src: url({ now: '2026-11-22T00:21:00', me: 'DJ Ren' }), size: duoInner },
           ],
         },
       ]

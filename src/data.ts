@@ -51,6 +51,16 @@ export function decode(payload: string): EventData | null {
   }
 }
 
+/**
+ * 開催日の時点での端末のタイムゾーンオフセット（分）。
+ * 作成日ではなく開催日で求めるので、夏時間の切り替えをまたいでもずれない。
+ */
+export function tzOffsetFor(date: string): number {
+  const [y, mo, d] = date.split('-').map(Number)
+  if (!y || !mo || !d) return new Date().getTimezoneOffset()
+  return new Date(y, mo - 1, d, 12).getTimezoneOffset()
+}
+
 export const toMin = (hm: string): number | null => {
   const m = /^(\d{1,2}):(\d{2})$/.exec(hm)
   if (!m) return null

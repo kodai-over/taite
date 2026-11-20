@@ -1,5 +1,5 @@
 import QRCode from 'qrcode'
-import { encode, fromMin, resolve, toMin, type EventData, type Slot } from './data'
+import { encode, fromMin, resolve, toMin, tzOffsetFor, type EventData, type Slot } from './data'
 import { esc, fmtHM, store, todayISO } from './util'
 
 const DRAFT_KEY = 'taite:draft'
@@ -101,12 +101,15 @@ export function renderEditor(root: HTMLElement, init?: EventData): () => void {
 
   let qrToken = 0
   const update = () => {
+    ev.z = tzOffsetFor(ev.d)
     store.set(DRAFT_KEY, JSON.stringify(ev))
 
     // バリデーション
     const problems: string[] = []
+    const hasDate = /^\d{4}-\d{2}-\d{2}$/.test(ev.d)
     const resolved = resolve(ev)
-    if (resolved.length !== ev.s.length) problems.push('開始・終了時刻が未入力の枠があります')
+    if (!hasDate) problems.push('開催日が未入力です')
+    else if (resolved.length !== ev.s.length) problems.push('開始・終了時刻が未入力の枠があります')
     if (ev.s.some(([, , n]) => !n.trim())) problems.push('DJ名が未入力の枠があります')
     for (let k = 1; k < resolved.length; k++) {
       const a = resolved[k - 1]
@@ -122,10 +125,23 @@ export function renderEditor(root: HTMLElement, init?: EventData): () => void {
       .map((p, k) => `<li class="${k === 0 && resolved.length ? 'ok' : 'warn'}">${esc(p)}</li>`)
       .join('')
 
+    // 開催日がないと時刻を計算できないので、共有させない
+    copy.disabled = !hasDate
+    nshare.disabled = !hasDate
+    open.classList.toggle('disabled', !hasDate)
+    open.setAttribute('aria-disabled', String(!hasDate))
+    const token = ++qrToken
+    if (!hasDate) {
+      urlInput.value = ''
+      urlInput.placeholder = '開催日を入力すると共有リンクができます'
+      open.removeAttribute('href')
+      qr.hidden = true
+      return
+    }
+
     const url = shareUrl(ev)
     urlInput.value = url
     open.href = url
-    const token = ++qrToken
     QRCode.toDataURL(url, { margin: 1, width: 480, errorCorrectionLevel: 'L' })
       .then((d) => {
         if (token !== qrToken) return

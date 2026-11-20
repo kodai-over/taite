@@ -3,10 +3,10 @@ import { esc, fmtClock, fmtDur, fmtHM, now, store } from './util'
 import { initWakeLock } from './wakelock'
 
 /** 警告レベル: 出番直前 / 残り10分 / 5分 / 1分 / 超過 */
-type Level = '' | 'soon' | 'w10' | 'w5' | 'w1' | 'over'
+type Level = '' | 'soon' | 'w10' | 'w5' | 'w1' | 'over' | 'overAck'
 
 const MIN = 60_000
-const OVER_SHOW_MS = 30 * MIN // 自分のセット終了後、超過表示を続ける時間
+const OVER_SHOW_MS = 10 * MIN // 自分のセット終了後、超過表示を続ける時間
 const SOON_MS = 10 * MIN // 出番の何分前から「まもなく出番」にするか
 /** 「DJではない（全体表示）」を選んだ時の保存値 */
 const ALL = '__all__'
@@ -131,6 +131,15 @@ export function renderViewer(root: HTMLElement, ev: EventData, payload: string):
   // 一覧は表示のみ。暗いブースでの誤タップで他のDJに切り替わらないよう、切り替えは「変更」ボタンからだけにする
 
   let lastLevel: Level = ''
+  /** 超過の点滅をタップで止めた枠（同じ枠の間は点滅させない） */
+  let ackedSlot: number | null = null
+  let overSlot: number | null = null
+  $('card').addEventListener('click', () => {
+    if (overSlot !== null) {
+      ackedSlot = overSlot
+      tick()
+    }
+  })
 
   const show = (o: {
     label: string
@@ -190,10 +199,11 @@ export function renderViewer(root: HTMLElement, ev: EventData, payload: string):
     if (isDj()) {
       const mine = slots.filter((s) => s.name === me)
       let target = mine.find((s) => t < s.end) ?? mine[mine.length - 1]
-      // 同じDJの枠が複数ある場合、直前の枠の終了から OVER_SHOW_MS 以内で次の枠がまだ始まっていなければ、
+      // 同じDJの枠が複数ある場合、直前の枠の終了から OVER_SHOW_MS 以内で、次の枠が「まもなく出番」より先なら、
       // 前の枠の超過表示を優先する（終わった瞬間に次の出番のカウントダウンへ切り替わらないように）
       const prev = mine.filter((s) => s.end <= t).pop()
-      if (prev && t - prev.end < OVER_SHOW_MS && t < target.start) target = prev
+      if (prev && t - prev.end < OVER_SHOW_MS && target.start - t > SOON_MS) target = prev
+      overSlot = null
       const rangeText = `${fmtHM(target.start)} 〜 ${fmtHM(target.end)}`
       if (t < target.start) {
         const wait = target.start - t
@@ -218,14 +228,16 @@ export function renderViewer(root: HTMLElement, ev: EventData, payload: string):
           level: levelOf(remain),
         })
       } else if (t - target.end < OVER_SHOW_MS) {
+        overSlot = target.i
+        const acked = ackedSlot === target.i
         show({
-          label: '終了時刻を超過',
+          label: acked ? '終了時刻を超過' : '終了時刻を超過（タップで点滅を止める）',
           name: '次のDJへ交代してください',
           timer: '+' + fmtDur(t - target.end),
           progress: 1,
           range: rangeText,
           next: nextLine(nextAfter(target)),
-          level: 'over',
+          level: acked ? 'overAck' : 'over',
         })
       } else {
         show({ label: 'セット終了', name: 'お疲れさまでした', timer: '--:--', progress: 1, range: rangeText, next: '', level: '' })
@@ -233,6 +245,7 @@ export function renderViewer(root: HTMLElement, ev: EventData, payload: string):
       return
     }
 
+    overSlot = null
     if (cur) {
       const remain = cur.end - t
       show({

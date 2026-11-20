@@ -55,7 +55,8 @@ button, input, a.btn { font: inherit; color: inherit; }
 .btn.primary { background: var(--accent); color: #062018; border-color: transparent; font-weight: 700; }
 .btn.ghost { background: transparent; border-style: dashed; }
 .btn.wide { width: 100%; }
-.btn.small { min-height: 34px; padding: 0 12px; font-size: 13px; }
+.btn.small { min-height: 44px; padding: 0 14px; font-size: 13px; }
+.btn:disabled, .btn.disabled { opacity: 0.4; pointer-events: none; }
 
 input {
   width: 100%;
@@ -132,7 +133,7 @@ input:focus-visible, button:focus-visible, a:focus-visible {
 .wake {
   flex-shrink: 0;
   border: 1px solid var(--line); border-radius: 999px;
-  background: transparent; padding: 6px 12px; font-size: 12px; cursor: pointer; color: var(--muted);
+  min-height: 44px; background: transparent; padding: 0 14px; font-size: 12px; cursor: pointer; color: var(--muted);
 }
 .wake[data-state='on'] { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 40%, transparent); }
 .wake[data-state='na'] { color: var(--w10); }
@@ -242,6 +243,17 @@ body[data-level='w1'] .card, body[data-level='over'] .card { border-color: var(-
 body[data-level='w1'] .timer, body[data-level='over'] .timer { color: #fff; }
 body[data-level='w1'] .bar-fill, body[data-level='over'] .bar-fill { background: #fff; }
 body[data-level='over'] { animation-duration: 0.6s; }
+body[data-level='over'] .card { cursor: pointer; }
+
+/* 点滅を止めた後: 赤い文字で超過だけ示す */
+body[data-level='overAck'] .card { border-color: var(--w1); }
+body[data-level='overAck'] .timer, body[data-level='overAck'] .card-label { color: var(--w1); }
+body[data-level='overAck'] .bar-fill { background: var(--w1); }
+
+/* 動きを減らす設定の端末では点滅させず、赤の固定表示にする */
+@media (prefers-reduced-motion: reduce) {
+  body[data-level='w1'], body[data-level='over'] { animation: none; background-color: #5c050b; }
+}
 
 @keyframes flash {
   0% { background-color: #8a0710; }

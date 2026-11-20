@@ -1,4 +1,8 @@
+import '@fontsource/barlow/latin-500.css'
+import '@fontsource/barlow/latin-600.css'
+import '@fontsource/barlow/latin-700.css'
 import './style.css'
+import { icon } from './icons'
 import { decode } from './data'
 import { renderEditor } from './editor'
 import { renderViewer } from './viewer'
@@ -23,9 +27,10 @@ function route() {
       dispose = renderViewer(app, ev, h)
       return
     }
-    app.innerHTML = `<div class="error"><h1>リンクを読み込めませんでした</h1>
-      <p>URLが途中で切れている可能性があります。共有元にもう一度リンクを送ってもらってください。</p>
-      <a class="btn primary" href="#">新しく作成する</a></div>`
+    app.innerHTML = `<div class="error">
+      <h1>Link broken</h1>
+      <p>The URL may have been cut off. Ask for the link again.</p>
+      <a class="go" href="#">${icon.plus}<span>New timetable</span></a></div>`
     dispose = () => {}
     return
   }

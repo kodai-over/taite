@@ -1,0 +1,169 @@
+import { icon } from './icons'
+import { esc } from './util'
+
+/* ==========================================================================
+   画面下からせり上がる、時刻（ホイール）と日付（カレンダー）の選択パネル
+   ブラウザ標準の選択画面は見た目が古く、端末ごとにばらつくため自前で作る
+   ========================================================================== */
+
+const ITEM = 44 // ホイール1行の高さ（px）。style.css の .wheel-item と揃える
+const p2 = (n: number) => String(n).padStart(2, '0')
+
+/** 下からせり上がるパネルを開く。閉じると remove される */
+function openSheet(label: string, body: string): { root: HTMLElement; close: () => void } {
+  const root = document.createElement('div')
+  root.className = 'sheet-root'
+  root.innerHTML = `
+    <div class="sheet-bg"></div>
+    <div class="sheet" role="dialog" aria-modal="true" aria-label="${esc(label)}">${body}</div>`
+  document.body.append(root)
+  requestAnimationFrame(() => root.classList.add('open'))
+  const close = () => {
+    root.classList.remove('open')
+    document.removeEventListener('keydown', onKey)
+    setTimeout(() => root.remove(), 220)
+  }
+  const onKey = (e: KeyboardEvent) => {
+    if (e.key === 'Escape') root.dispatchEvent(new Event('cancel'))
+  }
+  document.addEventListener('keydown', onKey)
+  root.querySelector('.sheet-bg')!.addEventListener('click', () => root.dispatchEvent(new Event('cancel')))
+  return { root, close }
+}
+
+/** ホイール（縦にスクロールして中央の値を選ぶ）を作る */
+function wheel(values: number[], selected: number, label: string): string {
+  return `<div class="wheel" role="listbox" aria-label="${label}" tabindex="0" data-sel="${selected}">
+    ${values.map((v, i) => `<div class="wheel-item" role="option" data-i="${i}">${p2(v)}</div>`).join('')}
+  </div>`
+}
+
+function setupWheel(el: HTMLElement, onChange: () => void): () => number {
+  const items = [...el.querySelectorAll<HTMLElement>('.wheel-item')]
+  const read = () => Math.min(items.length - 1, Math.max(0, Math.round(el.scrollTop / ITEM)))
+  const paint = () => {
+    const i = read()
+    items.forEach((it, k) => it.classList.toggle('on', k === i))
+    onChange()
+  }
+  el.scrollTop = Number(el.dataset.sel) * ITEM
+  paint()
+  let raf = 0
+  el.addEventListener('scroll', () => {
+    cancelAnimationFrame(raf)
+    raf = requestAnimationFrame(paint)
+  })
+  el.addEventListener('click', (e) => {
+    const it = (e.target as HTMLElement).closest<HTMLElement>('.wheel-item')
+    if (it) el.scrollTo({ top: Number(it.dataset.i) * ITEM, behavior: 'smooth' })
+  })
+  el.addEventListener('keydown', (e) => {
+    const d = e.key === 'ArrowDown' ? 1 : e.key === 'ArrowUp' ? -1 : 0
+    if (!d) return
+    e.preventDefault()
+    el.scrollTo({ top: (read() + d) * ITEM, behavior: 'smooth' })
+  })
+  return read
+}
+
+/** 時刻を選ぶ（5分刻み）。キャンセルなら null */
+export function pickTime(label: string, value: string): Promise<string | null> {
+  const [h0 = 21, m0 = 0] = value.split(':').map(Number)
+  const hours = Array.from({ length: 24 }, (_, i) => i)
+  // 5分刻み。今の値が5分刻みでなければ、その分も選択肢に入れる（開いて Done しただけで値が変わらないように）
+  const mins = [...new Set([...Array.from({ length: 12 }, (_, i) => i * 5), m0])].sort((a, b) => a - b)
+  const mi = mins.indexOf(m0)
+
+  return new Promise((resolve) => {
+    const { root, close } = openSheet(
+      label,
+      `<header class="sheet-h">
+        <span class="sheet-t">${esc(label)}</span>
+        <span class="sheet-v" aria-live="polite"></span>
+        <button type="button" class="sheet-done">Done</button>
+      </header>
+      <div class="wheels">
+        <div class="wheel-band" aria-hidden="true"></div>
+        ${wheel(hours, h0, 'Hour')}
+        <span class="wheel-colon" aria-hidden="true">:</span>
+        ${wheel(mins, mi, 'Minute')}
+      </div>`,
+    )
+    const [hEl, mEl] = [...root.querySelectorAll<HTMLElement>('.wheel')]
+    const preview = root.querySelector<HTMLElement>('.sheet-v')!
+    let readH = () => h0
+    let readM = () => mi
+    const show = () => (preview.textContent = `${p2(hours[readH()])}:${p2(mins[readM()])}`)
+    requestAnimationFrame(() => {
+      readH = setupWheel(hEl, show)
+      readM = setupWheel(mEl, show)
+      hEl.focus({ preventScroll: true })
+    })
+    root.querySelector('.sheet-done')!.addEventListener('click', () => {
+      close()
+      resolve(`${p2(hours[readH()])}:${p2(mins[readM()])}`)
+    })
+    root.addEventListener('cancel', () => {
+      close()
+      resolve(null)
+    })
+  })
+}
+
+const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
+const iso = (y: number, m: number, d: number) => `${y}-${p2(m + 1)}-${p2(d)}`
+
+/** 日付を選ぶ（月のカレンダー。日をタップで決定）。キャンセルなら null */
+export function pickDate(value: string): Promise<string | null> {
+  const now = new Date()
+  const today = iso(now.getFullYear(), now.getMonth(), now.getDate())
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value)
+  let y = m ? Number(m[1]) : now.getFullYear()
+  let mo = m ? Number(m[2]) - 1 : now.getMonth()
+
+  return new Promise((resolve) => {
+    const { root, close } = openSheet(
+      'Date',
+      `<header class="sheet-h cal-h">
+        <button type="button" class="ibtn cal-nav" data-d="-1" aria-label="Previous Month">${icon.back}</button>
+        <span class="sheet-t cal-t"></span>
+        <button type="button" class="ibtn cal-nav cal-next" data-d="1" aria-label="Next Month">${icon.back}</button>
+      </header>
+      <div class="cal-w" aria-hidden="true"><span>S</span><span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span></div>
+      <div class="cal" role="grid"></div>`,
+    )
+    const grid = root.querySelector<HTMLElement>('.cal')!
+    const titleEl = root.querySelector<HTMLElement>('.cal-t')!
+    const render = () => {
+      titleEl.textContent = `${MONTHS[mo]} ${y}`
+      const first = new Date(y, mo, 1).getDay()
+      const days = new Date(y, mo + 1, 0).getDate()
+      grid.innerHTML =
+        '<span></span>'.repeat(first) +
+        Array.from({ length: days }, (_, i) => {
+          const d = iso(y, mo, i + 1)
+          const cls = ['cal-d', d === value ? 'sel' : '', d === today ? 'today' : ''].join(' ')
+          return `<button type="button" class="${cls}" data-v="${d}" aria-label="${MONTHS[mo]} ${i + 1}, ${y}"${d === value ? ' aria-selected="true"' : ''}>${i + 1}</button>`
+        }).join('')
+    }
+    render()
+    root.querySelectorAll<HTMLButtonElement>('.cal-nav').forEach((b) =>
+      b.addEventListener('click', () => {
+        mo += Number(b.dataset.d)
+        if (mo < 0) (mo = 11), y--
+        if (mo > 11) (mo = 0), y++
+        render()
+      }),
+    )
+    grid.addEventListener('click', (e) => {
+      const b = (e.target as HTMLElement).closest<HTMLButtonElement>('.cal-d')
+      if (!b) return
+      close()
+      resolve(b.dataset.v!)
+    })
+    root.addEventListener('cancel', () => {
+      close()
+      resolve(null)
+    })
+  })
+}

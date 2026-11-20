@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>TAITE 確認用モック</title>
+    <!--
+      確認専用ページ（開発サーバーでだけ開く。ビルド・公開には含まれない）。
+      実物のアプリを iframe で並べ、?now（時刻）・?me（DJ）・?view（画面）などで各状態を固定して表示する。
+    -->
+    <style>
+      :root {
+        --bg: #f4f4f6; --surface: #fff; --line: #dcdce3; --text: #18181d; --muted: #6b6b7a; --accent: #0f9d6b;
+        color-scheme: light dark;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root { --bg: #111116; --surface: #1b1b22; --line: #2c2c38; --text: #f2f2f5; --muted: #9a9aab; --accent: #7cf5c4; }
+      }
+      * { box-sizing: border-box; }
+      body { margin: 0; background: var(--bg); color: var(--text); font-family: system-ui, -apple-system, 'Hiragino Sans', sans-serif; }
+      header { padding: 24px 24px 8px; max-width: 1400px; margin: 0 auto; }
+      h1 { margin: 0 0 6px; font-size: 24px; }
+      header p { margin: 0; color: var(--muted); font-size: 14px; line-height: 1.6; }
+      .controls { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; align-items: center; font-size: 13px; color: var(--muted); }
+      .controls button {
+        font: inherit; color: var(--text); background: var(--surface); border: 1px solid var(--line);
+        border-radius: 999px; padding: 6px 14px; cursor: pointer;
+      }
+      .controls button[aria-pressed='true'] { border-color: var(--accent); color: var(--accent); font-weight: 700; }
+      section { max-width: 1400px; margin: 0 auto; padding: 8px 24px 24px; }
+      h2 { font-size: 15px; margin: 24px 0 12px; color: var(--muted); letter-spacing: 0.04em; }
+      .grid { display: flex; flex-wrap: wrap; gap: 28px 24px; }
+      figure { margin: 0; }
+      figcaption { margin-top: 10px; font-size: 13px; line-height: 1.5; max-width: var(--w); }
+      figcaption b { display: block; font-size: 14px; }
+      figcaption span { color: var(--muted); }
+      figcaption a { color: var(--accent); font-size: 12px; }
+      /* 端末の枠: 実寸の iframe を縮小して収める */
+      .device {
+        width: var(--w); height: var(--h);
+        border: 1px solid var(--line); border-radius: 22px; overflow: hidden;
+        background: #0b0b0f; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.12);
+      }
+      .device iframe { border: 0; width: var(--fw); height: var(--fh); transform: scale(var(--s)); transform-origin: 0 0; display: block; }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>TAITE 確認用モック</h1>
+      <p>
+        実物のアプリを、状態ごとにスマホの大きさで並べています。時刻はテスト用に固定しています（サンプル: NIGHT GROOVE vol.3、DJ Ren の出番 23:00–00:30）。<br />
+        各画面は実際に操作できます（ボタン・タップ）。「単体で開く」で1画面だけ大きく開けます。
+      </p>
+      <div class="controls">
+        表示の大きさ:
+        <button type="button" data-scale="0.5">小</button>
+        <button type="button" data-scale="0.62" aria-pressed="true">中</button>
+        <button type="button" data-scale="0.8">大</button>
+      </div>
+    </header>
+    <main id="main"></main>
+
+    <script>
+      // サンプルのタイムテーブル（21:00 DJ Kodai / 22:00 DJ Aki / 23:00–00:30 DJ Ren / 00:30–01:30 DJ Mina、2026-11-21）
+      const P =
+        'v1.N4IgbiBcCMA0IBcogHIEkDiAJAKgAgwCUB5YgNQFE8wB7AGwDoBmEeAE2QCYAGTgNgC00aAM7RWIAF5QBAVgAs3eAGcoAbTUgxkbtwmdOOvfAAiAKTwBpGmwCGASxABdWJoNH9TD6YsBBANaOLm5euhK6kEzGIOZ4hACmAHbOriARUeHQkdGxALL2ibbOTgC+QA'
+      const url = (params) => `./?${new URLSearchParams(params)}#${P}`
+      const phone = { fw: 375, fh: 812 }
+      const small = { fw: 375, fh: 667 }
+      const land = { fw: 812, fh: 375 }
+      const duoOuter = { fw: 366, fh: 600 }
+      const duoInner = { fw: 951, fh: 520 }
+
+      const groups = [
+        {
+          title: 'タイマー',
+          items: [
+            { name: '最初の画面（タイムテーブル）', note: '名前をタップでタイマーへ', src: url({ now: '2026-11-21T22:40:00', me: 'none' }) },
+            { name: '出番まで', note: '出番の約1時間前', src: url({ now: '2026-11-21T22:00:00', me: 'DJ Ren' }) },
+            { name: 'まもなく出番', note: 'Cue（10分前から青）', src: url({ now: '2026-11-21T22:52:00', me: 'DJ Ren' }) },
+            { name: 'プレイ中', note: 'On air（緑）', src: url({ now: '2026-11-21T23:40:00', me: 'DJ Ren' }) },
+            { name: '残り10分', note: '黄', src: url({ now: '2026-11-22T00:21:00', me: 'DJ Ren' }) },
+            { name: '残り5分', note: 'オレンジ', src: url({ now: '2026-11-22T00:26:00', me: 'DJ Ren' }) },
+            { name: '残り1分', note: '画面全体が赤く点滅', src: url({ now: '2026-11-22T00:29:20', me: 'DJ Ren' }) },
+            { name: '超過', note: '速い点滅（タップで停止）', src: url({ now: '2026-11-22T00:31:10', me: 'DJ Ren' }) },
+            { name: '超過（点滅停止後）', note: '赤い文字だけ', src: url({ now: '2026-11-22T00:31:10', me: 'DJ Ren', ack: '1' }) },
+          ],
+        },
+        {
+          title: 'その他の画面',
+          items: [
+            { name: 'タイムテーブル（選択後）', note: '左上の ‹ で開く。名前タップでそのDJのタイマーへ', src: url({ now: '2026-11-21T23:40:00', me: 'DJ Ren', view: 'table' }) },
+            { name: '作成画面', note: '※ 下書きはこのブラウザに保存されます', src: './' },
+            { name: '小さい画面（iPhone SE）', note: '375×667', src: url({ now: '2026-11-22T00:26:00', me: 'DJ Ren' }), size: small },
+            { name: '横向き', note: '812×375（ブースに立てかける想定）', src: url({ now: '2026-11-22T00:21:00', me: 'DJ Ren' }), size: land },
+            { name: 'iPhone Duo（閉じた状態・外側）', note: '細い画面', src: url({ now: '2026-11-21T22:52:00', me: 'DJ Ren' }), size: duoOuter },
+            { name: 'iPhone Duo（内側・未選択）', note: '名前をタップでタイマーを表示', src: url({ now: '2026-11-22T00:21:00', me: 'none' }), size: duoInner },
+            { name: 'iPhone Duo（開いた状態・内側）', note: '左右に並べる。名前タップで切り替え', src: url({ now: '2026-11-22T00:21:00', me: 'DJ Ren' }), size: duoInner },
+          ],
+        },
+      ]
+
+      const main = document.getElementById('main')
+      main.innerHTML = groups
+        .map(
+          (g) => `
+        <section>
+          <h2>${g.title}</h2>
+          <div class="grid">
+            ${g.items
+              .map((it) => {
+                const sz = it.size || phone
+                return `
+              <figure style="--fw:${sz.fw}px; --fh:${sz.fh}px">
+                <div class="device"><iframe src="${it.src}" title="${it.name}" loading="lazy" allow="screen-wake-lock"></iframe></div>
+                <figcaption><b>${it.name}</b><span>${it.note}</span> <a href="${it.src}" target="_blank" rel="noopener">単体で開く ↗</a></figcaption>
+              </figure>`
+              })
+              .join('')}
+          </div>
+        </section>`,
+        )
+        .join('')
+
+      // 縮小率の切り替え（枠の大きさ = 実寸 × 縮小率）
+      const setScale = (s) => {
+        document.querySelectorAll('figure').forEach((f) => {
+          const fw = parseFloat(f.style.getPropertyValue('--fw'))
+          const fh = parseFloat(f.style.getPropertyValue('--fh'))
+          f.style.setProperty('--s', s)
+          f.style.setProperty('--w', `${Math.round(fw * s)}px`)
+          f.style.setProperty('--h', `${Math.round(fh * s)}px`)
+        })
+        document.querySelectorAll('[data-scale]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.scale === String(s))))
+      }
+      document.querySelectorAll('[data-scale]').forEach((b) => b.addEventListener('click', () => setScale(Number(b.dataset.scale))))
+      setScale(0.62)
+    </script>
+  </body>
+</html>

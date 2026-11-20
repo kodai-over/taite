@@ -6,11 +6,11 @@ import { esc } from './util'
 /**
  * トップ画面: タイムテーブルの一覧と、新規作成のプラスボタンだけ。
  * 自分が作ったもの・DJ用リンクで開いたものを1つにまとめ、タップでタイムテーブル画面を開く
- * （自分が作ったものは、タイムテーブル画面の編集ボタンから編集できる）。一覧はこの端末に保存（ログインなし）。
+ * 自分が作ったものには編集ボタンを付ける（編集画面へはここからだけ行ける）。一覧はこの端末に保存（ログインなし）。
  */
 export function renderHome(root: HTMLElement): () => void {
   const render = () => {
-    const own = new Set(mine.all().map((m) => m.id))
+    const keys = new Map(mine.all().map((m) => [m.id, m.key]))
     const seen = new Set<string>()
     const list = [...mine.all(), ...gigs.all()]
       .sort((a, b) => b.at - a.at)
@@ -32,7 +32,12 @@ export function renderHome(root: HTMLElement): () => void {
                 <span class="li-name">${esc(x.t || 'Untitled')}</span>
                 <span class="li-time">${esc(x.d ? fmtDate(x.d) : '—')}</span>
               </a>
-              <button type="button" class="del" data-id="${esc(x.id)}" data-own="${own.has(x.id) ? 1 : ''}" aria-label="Remove from This List" title="Remove from This List">${icon.remove}</button>
+              ${
+                keys.has(x.id)
+                  ? `<a class="ibtn edit" href="#/edit/${esc(x.id)}/${esc(keys.get(x.id)!)}" aria-label="Edit Timetable" title="Edit">${icon.edit}</a>`
+                  : ''
+              }
+              <button type="button" class="del" data-id="${esc(x.id)}" data-own="${keys.has(x.id) ? 1 : ''}" aria-label="Remove from This List" title="Remove from This List">${icon.remove}</button>
             </li>`,
               )
               .join('')}</ul>`

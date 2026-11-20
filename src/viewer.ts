@@ -16,7 +16,6 @@ export interface ViewerOptions {
   /** 端末に「自分のDJ」などを保存する時のキー（イベントごとに変える） */
   storeKey: string
   /** 編集画面へのリンク（編集用の鍵を持っている時だけ） */
-  editHref?: string
   /** 一覧（ホーム）へのリンク */
   homeHref?: string
 }
@@ -76,7 +75,6 @@ export function renderViewer(root: HTMLElement, ev: EventData, opts: ViewerOptio
       <header class="top">
         ${opts.homeHref ? `<a class="ibtn" href="${opts.homeHref}" aria-label="All Timetables" title="All Timetables">${icon.home}</a>` : ''}
         <span class="ev">${title}</span>
-        ${opts.editHref ? `<a class="ibtn" href="${opts.editHref}" aria-label="Edit Timetable" title="Edit">${icon.edit}</a>` : ''}
         <span class="sync" hidden></span>
       </header>
       <p id="hint" class="l-hint">${slots.length ? 'Tap a name to open its timer' : 'This link has no sets'}</p>

@@ -119,10 +119,7 @@ function route() {
     dispose = live(
       app,
       id,
-      (data) => {
-        const m = mine.get(id)
-        return renderViewer(app, data, { storeKey: id, homeHref: '#/', editHref: m ? `#/edit/${id}/${m.key}` : undefined })
-      },
+      (data) => renderViewer(app, data, { storeKey: id, homeHref: '#/' }),
       (data) => gigs.put({ id, t: data.t, d: data.d }),
     )
     return

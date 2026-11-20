@@ -370,6 +370,7 @@ body[data-level='over'] .display { cursor: pointer; }
 .home .e-head { align-items: center; justify-content: space-between; }
 .home .add { background: var(--ink); color: #111; }
 .home .add:active { background: var(--dim); }
+.h-list .edit { background: transparent; color: var(--dim); }
 
 /* 共有: 左にラベル、真ん中に説明、右にコピー/共有 */
 .link-cell { grid-template-columns: 7.5em minmax(0, 1fr) auto; }

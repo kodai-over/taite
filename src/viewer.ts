@@ -74,11 +74,11 @@ export function renderViewer(root: HTMLElement, ev: EventData, payload: string):
         .map(
           (s) => `
         <li data-i="${s.i}" data-name="${esc(s.name)}">
-          <button type="button">
+          <div class="row">
             <span class="t">${fmtHM(s.start)}–${fmtHM(s.end)}</span>
             <span class="n">${esc(s.name)}</span>
             <span class="badge"></span>
-          </button>
+          </div>
         </li>`,
         )
         .join('')}
@@ -128,11 +128,7 @@ export function renderViewer(root: HTMLElement, ev: EventData, payload: string):
   })
   $('pick-all').addEventListener('click', () => setMe(ALL))
 
-  // 一覧のDJをタップするとそのDJの表示に切り替え
-  list.addEventListener('click', (e) => {
-    const li = (e.target as HTMLElement).closest<HTMLLIElement>('li')
-    if (li) setMe(li.dataset.name!)
-  })
+  // 一覧は表示のみ。暗いブースでの誤タップで他のDJに切り替わらないよう、切り替えは「変更」ボタンからだけにする
 
   let lastLevel: Level = ''
 
@@ -193,7 +189,11 @@ export function renderViewer(root: HTMLElement, ev: EventData, payload: string):
 
     if (isDj()) {
       const mine = slots.filter((s) => s.name === me)
-      const target = mine.find((s) => t < s.end) ?? mine[mine.length - 1]
+      let target = mine.find((s) => t < s.end) ?? mine[mine.length - 1]
+      // 同じDJの枠が複数ある場合、直前の枠の終了から OVER_SHOW_MS 以内で次の枠がまだ始まっていなければ、
+      // 前の枠の超過表示を優先する（終わった瞬間に次の出番のカウントダウンへ切り替わらないように）
+      const prev = mine.filter((s) => s.end <= t).pop()
+      if (prev && t - prev.end < OVER_SHOW_MS && t < target.start) target = prev
       const rangeText = `${fmtHM(target.start)} 〜 ${fmtHM(target.end)}`
       if (t < target.start) {
         const wait = target.start - t

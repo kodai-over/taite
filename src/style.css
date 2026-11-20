@@ -203,20 +203,20 @@ input:focus-visible, button:focus-visible, a:focus-visible {
 [hidden] { display: none !important; }
 
 .list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
-.list button {
+.list .row {
   width: 100%;
   display: grid; grid-template-columns: auto 1fr auto; gap: 12px; align-items: center;
   min-height: 48px; padding: 8px 14px;
   border: 1px solid var(--line); border-radius: 12px;
-  background: var(--surface); text-align: left; cursor: pointer;
+  background: var(--surface); text-align: left;
 }
 .list .t { font-family: var(--mono); font-variant-numeric: tabular-nums; color: var(--muted); font-size: 14px; }
 .list .n { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .list .badge { font-size: 11px; font-weight: 800; letter-spacing: 0.08em; }
 .list li.past { opacity: 0.4; }
-.list li.now button { border-color: var(--accent); }
+.list li.now .row { border-color: var(--accent); }
 .list li.now .badge { color: var(--accent); }
-.list li.mine button { background: var(--surface-2); }
+.list li.mine .row { background: var(--surface-2); }
 .list li.mine:not(.now) .badge { color: var(--text); }
 
 .v-foot { margin-top: 28px; text-align: center; font-size: 13px; }

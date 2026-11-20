@@ -183,7 +183,6 @@ a { text-decoration: none; }
 .li-name { font-size: 18px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .list li.past .row { opacity: 0.4; }
 .list li.now .li-time { color: var(--onair); }
-.list li.mine .li-name { text-decoration: underline; text-underline-offset: 4px; text-decoration-thickness: 2px; }
 
 /* ==========================================================================
    状態ごとの色（--sig）と点滅

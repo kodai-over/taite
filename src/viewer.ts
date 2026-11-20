@@ -210,7 +210,6 @@ export function renderViewer(root: HTMLElement, ev: EventData, payload: string):
       const s = slots[k]
       li.classList.toggle('past', s.end <= t)
       li.classList.toggle('now', s === cur)
-      li.classList.toggle('mine', me !== null && s.name === me)
     })
 
     if (!slots.length) {

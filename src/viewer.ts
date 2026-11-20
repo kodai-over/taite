@@ -44,17 +44,11 @@ export function renderViewer(root: HTMLElement, ev: EventData, payload: string):
       </header>
 
       <div id="stage" class="display" aria-live="polite">
-        <div class="readouts">
-          <div class="ro"><span class="lbl">Time</span><span id="clock" class="ro-v">--:--:--</span></div>
-          <div class="ro"><span class="lbl">Your Set</span><span id="set" class="ro-v">--:--–--:--</span></div>
-        </div>
-        <dl class="lineup">
-          <dt class="lbl">Now Playing</dt>
-          <dd id="np" class="lu-name">—</dd>
-          <dd id="np-time" class="lu-time"></dd>
-          <dt class="lbl">Next</dt>
-          <dd id="nx" class="lu-name">—</dd>
-          <dd id="nx-time" class="lu-time"></dd>
+        <dl class="facts">
+          <div class="fact"><dt>Time</dt><dd><span id="clock" class="fv big">--:--:--</span></dd></div>
+          <div class="fact"><dt>Your Set</dt><dd><span id="set" class="fv big">--:--–--:--</span></dd></div>
+          <div class="fact"><dt>Now Playing</dt><dd><span id="np" class="fv">—</span><span id="np-time" class="ft"></span></dd></div>
+          <div class="fact"><dt>Next</dt><dd><span id="nx" class="fv">—</span><span id="nx-time" class="ft"></span></dd></div>
         </dl>
         <div class="core">
           <div class="status" id="label"></div>

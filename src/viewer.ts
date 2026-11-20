@@ -20,6 +20,8 @@ export function renderViewer(root: HTMLElement, ev: EventData, payload: string):
   const saved = store.get(meKey)
   // null = まだ選んでいない（名前選択画面を出す）, ALL = 全体表示, それ以外 = DJ名
   let me: string | null = saved === ALL || slots.some((s) => s.name === saved) ? saved : null
+  // 枠が1つもない（壊れたリンク等）なら名前選択を飛ばし、全体表示でエラー文言を出す
+  if (!slots.length) me = ALL
 
   // DJ名ごとの出番時刻（同じDJが複数枠ある場合はまとめる）
   const djs = [...new Set(slots.map((s) => s.name))].map((name) => ({
@@ -45,7 +47,7 @@ export function renderViewer(root: HTMLElement, ev: EventData, payload: string):
         )
         .join('')}
     </ul>
-    <button type="button" id="pick-all" class="btn ghost wide">DJではない（全体のタイテを見る）</button>
+    <button type="button" id="pick-all" class="btn ghost wide">DJではない（全体のタイムテーブルを見る）</button>
   </section>
 
   <div id="main" class="viewer" hidden>
@@ -134,12 +136,14 @@ export function renderViewer(root: HTMLElement, ev: EventData, payload: string):
   /** 超過の点滅をタップで止めた枠（同じ枠の間は点滅させない） */
   const ackKey = `${meKey}:ack`
   const savedAck = store.get(ackKey)
-  let ackedSlot: number | null = savedAck === null ? null : Number(savedAck)
-  let overSlot: number | null = null
+  // 枠は番号ではなく内容で識別する（タイムテーブルを直して並びが変わっても別の枠と取り違えないように）
+  const slotId = (s: ResolvedSlot) => `${s.name}@${s.start}-${s.end}`
+  let ackedSlot: string | null = savedAck
+  let overSlot: string | null = null
   $('card').addEventListener('click', () => {
     if (overSlot !== null) {
       ackedSlot = overSlot
-      store.set(ackKey, String(overSlot)) // 再読み込みしても点滅を再開しない
+      store.set(ackKey, overSlot) // 再読み込みしても点滅を再開しない
       tick()
     }
   })
@@ -231,15 +235,17 @@ export function renderViewer(root: HTMLElement, ev: EventData, payload: string):
           level: levelOf(remain),
         })
       } else if (t - target.end < OVER_SHOW_MS) {
-        overSlot = target.i
-        const acked = ackedSlot === target.i
+        overSlot = slotId(target)
+        const acked = ackedSlot === overSlot
+        const following = nextAfter(target)
         show({
           label: acked ? '終了時刻を超過' : '終了時刻を超過（タップで点滅を止める）',
-          name: '次のDJへ交代してください',
+          // 実際に交代したかはアプリから分からないので、促すのではなく状況を伝える
+          name: following ? `次は ${following.name}` : '最後のセットです',
           timer: '+' + fmtDur(t - target.end),
           progress: 1,
           range: rangeText,
-          next: nextLine(nextAfter(target)),
+          next: '',
           level: acked ? 'overAck' : 'over',
         })
       } else {

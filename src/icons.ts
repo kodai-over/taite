@@ -12,9 +12,9 @@ export const icon = {
   back: svg('<path d="M14.5 5.5 8 12l6.5 6.5"/>'),
   /** 編集・複製 */
   edit: svg('<path d="M14.5 5.5l4 4L9 19H5v-4z"/><path d="M12.5 7.5l4 4"/>'),
+  /** ドラッグで並べ替えるつまみ */
+  grip: svg('<path d="M5 8.5h14M5 12h14M5 15.5h14"/>'),
   plus: svg('<path d="M12 5v14M5 12h14"/>'),
-  up: svg('<path d="M6 14.5 12 8.5l6 6"/>'),
-  down: svg('<path d="M6 9.5l6 6 6-6"/>'),
   remove: svg('<path d="M6.5 6.5l11 11M17.5 6.5l-11 11"/>'),
   copy: svg('<path d="M9 9h10v10H9z"/><path d="M5 15V5h10"/>'),
   check: svg('<path d="M5 12.5l4.5 4.5L19 7.5"/>'),

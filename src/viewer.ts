@@ -65,6 +65,16 @@ export function renderViewer(root: HTMLElement, ev: EventData, payload: string):
   let face: Face = store.get(FACE_KEY) === 'analog' ? 'analog' : 'digital'
   let showTable = false
 
+  // 確認用（mock.html）: URLのパラメータで表示状態を固定する。保存はしない
+  //   ?me=none（名前選択） / all（全体表示） / DJ名、?face=analog|digital、?view=table、?ack=1（超過の点滅停止済み）
+  const q = new URLSearchParams(location.search)
+  const qMe = q.get('me')
+  if (qMe !== null) me = qMe === 'none' ? null : qMe === 'all' ? ALL : qMe
+  const qFace = q.get('face')
+  if (qFace === 'analog' || qFace === 'digital') face = qFace
+  if (q.get('view') === 'table') showTable = true
+  const forceAck = q.get('ack') === '1'
+
   // DJ名ごとの出番時刻（同じDJが複数枠ある場合はまとめる）
   const djs = [...new Set(slots.map((s) => s.name))].map((name) => ({
     name,
@@ -349,7 +359,7 @@ export function renderViewer(root: HTMLElement, ev: EventData, payload: string):
         })
       } else if (t - target.end < OVER_SHOW_MS) {
         overSlot = slotId(target)
-        const acked = ackedSlot === overSlot
+        const acked = forceAck || ackedSlot === overSlot
         const following = nextAfter(target)
         show({
           label: acked ? 'OVERTIME' : 'OVERTIME · TAP TO STOP FLASHING',

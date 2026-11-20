@@ -6,7 +6,7 @@ import { initWakeLock } from './wakelock'
 type Level = '' | 'soon' | 'w10' | 'w5' | 'w1' | 'over' | 'overAck'
 
 const MIN = 60_000
-const OVER_SHOW_MS = 10 * MIN // 自分のセット終了後、超過表示を続ける時間
+const OVER_SHOW_MS = 30 * MIN // 自分のセット終了後、超過表示を続ける時間（延長してプレイ中の場合もあるため長めに。点滅はタップで止められる）
 const SOON_MS = 10 * MIN // 出番の何分前から「まもなく出番」にするか
 /** 「DJではない（全体表示）」を選んだ時の保存値 */
 const ALL = '__all__'
@@ -132,11 +132,14 @@ export function renderViewer(root: HTMLElement, ev: EventData, payload: string):
 
   let lastLevel: Level = ''
   /** 超過の点滅をタップで止めた枠（同じ枠の間は点滅させない） */
-  let ackedSlot: number | null = null
+  const ackKey = `${meKey}:ack`
+  const savedAck = store.get(ackKey)
+  let ackedSlot: number | null = savedAck === null ? null : Number(savedAck)
   let overSlot: number | null = null
   $('card').addEventListener('click', () => {
     if (overSlot !== null) {
       ackedSlot = overSlot
+      store.set(ackKey, String(overSlot)) // 再読み込みしても点滅を再開しない
       tick()
     }
   })

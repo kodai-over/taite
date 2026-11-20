@@ -220,7 +220,10 @@ export function renderEditor(root: HTMLElement, ctx: { id?: string; key?: string
     if (draft) return
     root.querySelectorAll<HTMLButtonElement>('[data-tab]').forEach((b) => b.setAttribute('aria-selected', String(b.dataset.tab === tab)))
     $('link-v').textContent = url[tab].replace(/^https?:\/\//, '')
-    $('share-note').textContent = tab === 'dj' ? 'For DJs. Opens the timetable and their set timer.' : 'For everyone. Shows the timetable only.'
+    $('share-note').textContent =
+      tab === 'dj'
+        ? 'For DJs. Opens the timetable and their set timer. Ask them to open it once before the show, so it works without signal.'
+        : 'For everyone. Shows the timetable only.'
     const qr = $<HTMLImageElement>('qr')
     const token = ++qrToken
     QRCode.toDataURL(url[tab], { margin: 1, width: 480, errorCorrectionLevel: 'M' })

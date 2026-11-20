@@ -82,6 +82,7 @@ export function forget(id: string) {
   cache.remove(id)
   store.set(`taite:me:${id}`, null)
   store.set(`taite:me:${id}:ack`, null)
+  store.set(`taite:me:${id}:i`, null)
 }
 
 /* ---------- サーバー ---------- */

@@ -35,17 +35,7 @@ export function decode(payload: string): EventData | null {
   try {
     const json = LZString.decompressFromEncodedURIComponent(payload.slice(PREFIX.length))
     if (!json) return null
-    const o = JSON.parse(json)
-    if (o?.v !== 1 || !Array.isArray(o.s) || typeof o.d !== 'string') return null
-    return {
-      v: 1,
-      t: String(o.t ?? ''),
-      d: o.d,
-      z: Number(o.z) || 0,
-      s: o.s
-        .filter((x: unknown) => Array.isArray(x))
-        .map((x: unknown[]) => [String(x[0] ?? ''), String(x[1] ?? ''), String(x[2] ?? '')] as Slot),
-    }
+    return normalize(JSON.parse(json))
   } catch {
     return null
   }
@@ -59,6 +49,21 @@ export function tzOffsetFor(date: string): number {
   const [y, mo, d] = date.split('-').map(Number)
   if (!y || !mo || !d) return new Date().getTimezoneOffset()
   return new Date(y, mo - 1, d, 12).getTimezoneOffset()
+}
+
+/** 外から来たデータ（リンク・保存した下書き）を EventData の形にそろえる。形が違えば null */
+export function normalize(o: unknown): EventData | null {
+  const e = o as Partial<Record<keyof EventData, unknown>> | null
+  if (!e || e.v !== 1 || !Array.isArray(e.s) || typeof e.d !== 'string') return null
+  return {
+    v: 1,
+    t: String(e.t ?? ''),
+    d: e.d,
+    z: Number(e.z) || 0,
+    s: e.s
+      .filter((x: unknown) => Array.isArray(x))
+      .map((x: unknown[]) => [String(x[0] ?? ''), String(x[1] ?? ''), String(x[2] ?? '')] as Slot),
+  }
 }
 
 export const toMin = (hm: string): number | null => {

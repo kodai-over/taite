@@ -38,6 +38,8 @@ export async function pasteLink() {
     route = routeFromText(text)
     note = "That isn't a TAITE link. Paste the DJ link or edit link you received."
   }
+  // 自分で貼り付けて開いたリンクには、アプリで使う案内を出さない
+  store.set(`taite:hint:${route.split('/')[2]}`, '1')
   location.hash = route
 }
 

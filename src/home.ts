@@ -6,20 +6,17 @@ import { esc } from './util'
 
 const ID = /^[A-Za-z0-9_-]{1,40}$/
 
-/** このページを読み込んだ時のURL（ホーム画面に追加すると、これが起動先になる） */
-const LOADED = withHash(location.href)
-function withHash(href: string) {
-  const u = new URL(href)
-  if (!u.hash) u.hash = '#/'
-  return u.href
-}
-
 /**
  * URLの一覧（?l=id,id,…）を、この端末の一覧に取り込む。
  * iPhone ではホーム画面のアプリと Safari で保存場所が別なので、Safari のトップから追加した時は
  * 追加した時のURL（一覧つき）だけが引き継がれる。名前と日付はサーバーから取り直す。
  */
+let imported = false
 function importFromUrl() {
+  // ページを読み込んだ（アプリを起動した）時に一度だけ。トップに戻るたびに取り込むと、
+  // 削除されて一覧から外したものが戻ってしまう
+  if (imported) return
+  imported = true
   const ids = (new URLSearchParams(location.search).get('l') || '').split(',').filter((x) => ID.test(x))
   const known = new Set([...mine.all(), ...gigs.all()].map((x) => x.id))
   for (const id of ids) if (!known.has(id)) gigs.put({ id, t: '', d: '' })
@@ -41,18 +38,21 @@ export function renderHome(root: HTMLElement): () => void {
       .sort((a, b) => b.at - a.at)
       .filter((x) => !seen.has(x.id) && seen.add(x.id))
 
-    // ブラウザでは、一覧つきのURLでトップを読み込み直しておく（このページをホーム画面に追加した時に引き継ぐため）。
-    // iPhone はページを読み込んだ時のURLを起動先にするので、# 以降の書き換えだけでは足りない。
+    // ブラウザでは、一覧をURL（?l=…）に載せておく（このページをホーム画面に追加した時に引き継ぐため）。
+    // iPhone はページを読み込んだ時のURLを起動先にするので、一覧が変わった時だけ読み込み直す。
+    // 一覧が同じなら # 以降を書き換えるだけにする（電波の弱い会場で待たせないため）。
     // 並び順が変わっただけで読み込み直さないよう、id は並べ替えて載せる。編集用の鍵は載せない（URLは人に見せたり送ったりしやすいので）
     if (!standalone()) {
+      const want = new URL(location.href)
       const ids = list.map((x) => x.id).sort().join(',')
-      const want = new URL(ids ? `./?l=${ids}#/` : './#/', location.href).href
-      if (want !== LOADED) {
-        const sameDoc = new URL(want).search === location.search
-        location.replace(want)
-        if (sameDoc) location.reload() // # 以降だけ違う時は replace では読み込み直されない
+      if (ids) want.searchParams.set('l', ids)
+      else want.searchParams.delete('l')
+      want.hash = '#/'
+      if (want.search !== location.search) {
+        location.replace(want.href)
         return
       }
+      if (location.hash !== '#/') history.replaceState(history.state, '', want.href)
     }
 
     root.innerHTML = `
@@ -60,7 +60,7 @@ export function renderHome(root: HTMLElement): () => void {
       <header class="e-head">
         <h1 class="brand">TAITE</h1>
         <div class="h-acts">
-          <button type="button" class="ibtn paste" aria-label="Add from Link" title="Paste Link">${icon.paste}</button>
+          <button type="button" class="ibtn paste" aria-label="Add from Link" title="Add from Link">${icon.paste}</button>
           <a class="ibtn add" href="#/new" aria-label="New Timetable" title="New Timetable">${icon.plus}</a>
         </div>
       </header>

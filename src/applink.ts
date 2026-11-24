@@ -43,23 +43,34 @@ export async function pasteLink() {
   location.hash = route
 }
 
+/** iPhone・iPad か（リンクがホーム画面のアプリで開かないのは iOS。Android の Chrome はアプリで開けることがある） */
+const ios = () =>
+  /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
+
+const pending = new Set<string>()
+
 /**
- * Safari などのブラウザでタイムテーブルのリンクを開いた時に、アプリで使う方法を案内する（リンクごとに一度だけ）。
- * パソコンでは出さない（ホーム画面に追加して使うのはスマホ）。
+ * iPhone の Safari などでタイムテーブルのリンクを開いた時に、アプリで使う方法を案内する（リンクごとに一度だけ）。
+ * 表示する時にまだ同じ画面にいる時だけ出し、出した後で既読にする。
  */
 export function offerApp(id: string, kind: 'dj' | 'edit') {
-  if (standalone() || !matchMedia('(pointer: coarse)').matches) return
+  if (standalone() || !ios()) return
   const seen = `taite:hint:${id}`
-  if (store.get(seen)) return
-  store.set(seen, '1')
+  if (store.get(seen) || pending.has(id)) return
+  pending.add(id)
   const link = location.href
   const what = kind === 'edit' ? 'this edit link' : 'this link'
   setTimeout(() => {
+    pending.delete(id)
+    // 別の画面へ移った・タイマーを開いた（タイマーの上には重ねない）
+    const timer = (history.state as { taite?: string } | null)?.taite === 'timer'
+    if (location.href !== link || timer || store.get(seen)) return
+    store.set(seen, '1')
     void ask({
       title: 'Use the TAITE App',
       text:
-        `Links open in the browser, not in the TAITE app on your Home Screen. ` +
-        `If you have the app, copy ${what}, open the app, and tap Paste Link. ` +
+        `Links open in Safari, not in the TAITE app on your Home Screen. ` +
+        `If you have the app, copy ${what}, open the app, and tap the paste icon (Add from Link). ` +
         `No app yet? Tap Share, then Add to Home Screen.`,
       ok: 'Copy Link',
       cancelLabel: 'Not Now',

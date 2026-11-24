@@ -20,6 +20,7 @@ export const icon = {
   grip: svg('<path d="M5 8.5h14M5 12h14M5 15.5h14"/>'),
   plus: svg('<path d="M12 5v14M5 12h14"/>'),
   remove: svg('<path d="M6.5 6.5l11 11M17.5 6.5l-11 11"/>'),
+  paste: svg('<path d="M9 4.5h6v3H9z"/><path d="M15 6h3.5v14h-13V6H9"/>'),
   copy: svg('<path d="M9 9h10v10H9z"/><path d="M5 15V5h10"/>'),
   check: svg('<path d="M5 12.5l4.5 4.5L19 7.5"/>'),
   /** 書き出し（保存） */

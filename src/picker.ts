@@ -219,7 +219,18 @@ export function pickDate(value: string): Promise<string | null> {
  * すぐ「いいえ」になることがあるため使わない）。
  * 確認: OK で true、キャンセル・外側タップ・Esc で false。お知らせ（cancel: false）は閉じると false。
  */
-export function ask(o: { title: string; text?: string; ok: string; danger?: boolean; cancel?: boolean; field?: string }): Promise<boolean> {
+export function ask(o: {
+  title: string
+  text?: string
+  ok: string
+  danger?: boolean
+  cancel?: boolean
+  /** 取り消しボタンの文言（既定は Cancel） */
+  cancelLabel?: string
+  field?: string
+  /** OK を押した時にその場で実行する（クリップボードへのコピーなど、押した直後でないと動かない処理） */
+  onOk?: () => void
+}): Promise<boolean> {
   return new Promise((resolve) => {
     const { root, close } = openSheet(
       o.title,
@@ -227,7 +238,7 @@ export function ask(o: { title: string; text?: string; ok: string; danger?: bool
        ${o.text ? `<p class="ask-text">${esc(o.text)}</p>` : ''}
        ${o.field ? `<input class="ask-field" readonly value="${esc(o.field)}" aria-label="${esc(o.title)}">` : ''}
        <div class="ask-btns">
-         ${o.cancel === false ? '' : '<button type="button" class="ask-cancel">Cancel</button>'}
+         ${o.cancel === false ? '' : `<button type="button" class="ask-cancel">${esc(o.cancelLabel ?? 'Cancel')}</button>`}
          <button type="button" class="ask-ok${o.danger ? ' danger-fill' : ''}">${esc(o.ok)}</button>
        </div>`,
     )
@@ -236,9 +247,43 @@ export function ask(o: { title: string; text?: string; ok: string; danger?: bool
       resolve(v)
     }
     root.addEventListener('cancel', () => done(false))
-    root.querySelector('.ask-ok')!.addEventListener('click', () => done(true))
+    root.querySelector('.ask-ok')!.addEventListener('click', () => {
+      o.onOk?.()
+      done(true)
+    })
     root.querySelector('.ask-cancel')?.addEventListener('click', () => done(false))
     const f = root.querySelector<HTMLInputElement>('.ask-field')
     if (f) setTimeout(() => (f.focus(), f.select()), 250)
+  })
+}
+
+/** 1行の文字を入力してもらう（入力欄つきのシート）。取り消したら null */
+export function askText(o: { title: string; text?: string; ok: string; placeholder?: string; value?: string }): Promise<string | null> {
+  return new Promise((resolve) => {
+    const { root, close } = openSheet(
+      o.title,
+      `<header class="sheet-h"><span class="sheet-t">${esc(o.title)}</span></header>
+       ${o.text ? `<p class="ask-text">${esc(o.text)}</p>` : ''}
+       <form class="ask-form" novalidate>
+         <input class="ask-field" type="text" inputmode="url" autocomplete="off" autocapitalize="off" spellcheck="false"
+           value="${esc(o.value ?? '')}" placeholder="${esc(o.placeholder ?? '')}" aria-label="${esc(o.title)}">
+         <div class="ask-btns">
+           <button type="button" class="ask-cancel">Cancel</button>
+           <button type="submit" class="ask-ok">${esc(o.ok)}</button>
+         </div>
+       </form>`,
+    )
+    const f = root.querySelector<HTMLInputElement>('.ask-field')!
+    const done = (v: string | null) => {
+      close()
+      resolve(v)
+    }
+    root.addEventListener('cancel', () => done(null))
+    root.querySelector('.ask-form')!.addEventListener('submit', (e) => {
+      e.preventDefault()
+      done(f.value.trim())
+    })
+    root.querySelector('.ask-cancel')!.addEventListener('click', () => done(null))
+    setTimeout(() => f.focus(), 250)
   })
 }

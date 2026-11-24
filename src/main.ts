@@ -2,6 +2,7 @@ import '@fontsource/barlow/latin-500.css'
 import '@fontsource/barlow/latin-600.css'
 import '@fontsource/barlow/latin-700.css'
 import './style.css'
+import { offerApp } from './applink'
 import { cache, createEvent, fetchEvent, gigs, mine } from './api'
 import { decode, normalize, type EventData } from './data'
 import { newEventData, renderEditor } from './editor'
@@ -15,6 +16,7 @@ import { renderViewer } from './viewer'
 /*
   画面の切り替え（URLの # 以降）
     #/                    トップ（自分が作ったタイムテーブル・出演予定）
+    ?l=<id>,<id>…#/       トップ + 一覧（ホーム画面に追加した時に、アプリ側へ一覧を引き継ぐ）
     #/new                 新規作成（入力して Create で登録 → #/edit へ）
     #/edit/<id>/<key>     作成者の編集画面（鍵を持つ人だけ）
     #/dj/<id>             DJ用: タイムテーブル + 自分のタイマー（リアルタイム）
@@ -96,6 +98,7 @@ function route() {
     const open = (data: EventData) => {
       mine.put({ id, key, t: data.t, d: data.d })
       dispose = renderEditor(app, { id, key, data })
+      offerApp(id, 'edit')
     }
     const cached = cache.get(id)
     app.innerHTML = '<div class="loading" aria-busy="true">Loading…</div>'
@@ -126,7 +129,10 @@ function route() {
       app,
       id,
       (data) => renderViewer(app, data, { storeKey: id, homeHref: '#/' }),
-      (data) => gigs.put({ id, t: data.t, d: data.d }),
+      (data) => {
+        gigs.put({ id, t: data.t, d: data.d })
+        offerApp(id, 'dj')
+      },
     )
     return
   }

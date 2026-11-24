@@ -87,7 +87,7 @@ export function live(
     },
     () => {
       gone()
-      message('Timetable deleted', 'The organizer deleted this timetable.')
+      message('Timetable deleted', 'The organizer deleted this timetable. If the event is still on, ask them for a new link.')
     },
   )
 

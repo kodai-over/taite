@@ -130,7 +130,8 @@ function route() {
     const home = openedFromApp(id)
     const synced = (data: EventData) => {
       gigs.sync(id, data.t, data.d)
-      offerApp(id, 'dj')
+      // アプリで使う案内はDJにだけ（一般客には出さない）
+      if (page === 'dj') offerApp(id, 'dj')
     }
     dispose = live(
       app,

@@ -26,13 +26,14 @@ function importFromUrl() {
   for (const id of ids) if (!known.has(id)) gigs.put({ id, t: '', d: '' })
 }
 
-/** イベントが終わっているか。最後のセットの終了時刻で見る（まだ内容を持っていない時は、開催日が過ぎたかどうか） */
+/** イベントが終わっているか。最後のセットの終了時刻で見る（まだ内容を持っていない時は、開催日の翌日の正午を過ぎたか） */
 function ended(x: { id: string; d: string }): boolean {
   const snap = cache.get(x.id)
   const slots = snap ? resolve(snap.data) : []
   if (slots.length) return Math.max(...slots.map((s) => s.end)) <= now()
+  // 内容がない時は、日付をまたぐセット（23:00–02:00 など）の本番中にグレーにならないよう、翌日の正午まで待つ
   const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(x.d)
-  return !!m && new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]) + 1).getTime() <= now()
+  return !!m && new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]) + 1, 12).getTime() <= now()
 }
 
 /** スライドして止めた時に見せる操作ボタンの幅（px）。左端: 編集・リンク発行 / 右端: 削除 */
@@ -106,7 +107,7 @@ export function renderHome(root: HTMLElement): () => void {
               <div class="h-tools">
                 ${own ? `<button type="button" class="ibtn" data-act="edit" aria-label="Edit" title="Edit">${icon.edit}</button>
                 <button type="button" class="ibtn" data-act="link" aria-label="Link" title="Link">${icon.link}</button>` : ''}
-                <button type="button" class="ibtn t-del" data-act="del" aria-label="${own ? 'Delete' : 'Remove'}" title="${own ? 'Delete' : 'Remove from List'}">${icon.trash}</button>
+                <button type="button" class="ibtn t-del" data-act="del" aria-label="${own ? 'Delete' : 'Remove from List'}" title="${own ? 'Delete' : 'Remove from List'}">${icon.trash}</button>
               </div>
             </li>`
               })
@@ -223,12 +224,13 @@ export function renderHome(root: HTMLElement): () => void {
     if (openRow && !(e.target as HTMLElement).closest('.h-item')) closeRow()
   })
 
-  /** 自分が作ったものはサーバーからも削除、追加しただけのものは、この端末の一覧から外す */
+  /** 自分が作ったものはサーバーからも削除（確認あり）、追加しただけのものは、この端末の一覧から外すだけ */
   const remove = async (id: string) => {
     const own = mine.get(id)
     const item = rows.find((x) => x.id === id)
     if (!own) {
-      forget(id)
+      // 一覧から外すだけ。オフライン用の保存と選んだDJは残す（誤って外しても、リンクを開けば電波なしで使える）
+      gigs.remove(id)
       return render()
     }
     const yes = await ask({

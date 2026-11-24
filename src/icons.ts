@@ -20,7 +20,14 @@ export const icon = {
   grip: svg('<path d="M5 8.5h14M5 12h14M5 15.5h14"/>'),
   plus: svg('<path d="M12 5v14M5 12h14"/>'),
   remove: svg('<path d="M6.5 6.5l11 11M17.5 6.5l-11 11"/>'),
-  paste: svg('<path d="M9 4.5h6v3H9z"/><path d="M15 6h3.5v14h-13V6H9"/>'),
+  /** リンク・QRコードから追加（QRの四隅と読み取りの線） */
+  scan: svg('<path d="M4.5 9V4.5H9M15 4.5h4.5V9M19.5 15v4.5H15M9 19.5H4.5V15"/><path d="M4.5 12h15"/>'),
+  /** 画像から選ぶ */
+  image: svg('<path d="M4.5 5.5h15v13h-15z"/><path d="M4.5 16l4.5-4.5 3.5 3.5 2.5-2.5 5 5"/><path d="M9 8.6v.01" stroke-width="2.4" stroke-linecap="round"/>'),
+  /** リンクを発行する */
+  link: svg('<path d="M10 14a4 4 0 0 0 5.5 0l3-3a4 4 0 0 0-5.5-5.5l-1 1"/><path d="M14 10a4 4 0 0 0-5.5 0l-3 3a4 4 0 0 0 5.5 5.5l1-1"/>'),
+  /** 削除 */
+  trash: svg('<path d="M5 7h14M9.5 7V4.5h5V7M7 7l.8 12.5h8.4L17 7M10 11v5M14 11v5"/>'),
   copy: svg('<path d="M9 9h10v10H9z"/><path d="M5 15V5h10"/>'),
   check: svg('<path d="M5 12.5l4.5 4.5L19 7.5"/>'),
   /** 書き出し（保存） */

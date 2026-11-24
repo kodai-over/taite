@@ -61,6 +61,11 @@ export const gigs = {
   /** 並び順（at）を変えずに書き換える */
   update: (item: GigItem) =>
     writeList('taite:gigs', readList<GigItem>('taite:gigs').map((g) => (g.id === item.id ? item : g))),
+  /** 一覧にあるものだけ、名前と日付を最新にする（開いただけでは一覧に加えない） */
+  sync(id: string, t: string, d: string) {
+    const g = readList<GigItem>('taite:gigs').find((x) => x.id === id)
+    if (g && (g.t !== t || g.d !== d)) gigs.update({ ...g, t, d })
+  },
   remove: (id: string) => writeList('taite:gigs', readList<GigItem>('taite:gigs').filter((g) => g.id !== id)),
 }
 

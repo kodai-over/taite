@@ -11,6 +11,8 @@ export function live(
   id: string,
   render: (data: EventData) => () => void,
   onData?: (data: EventData) => void,
+  /** アプリの一覧から開いた時だけ、一覧へ戻るリンクを出す（リンクで開いた時は、そのイベントだけを見せる） */
+  home = false,
 ): () => void {
   let disposeView: () => void = () => {}
   let shown = ''
@@ -37,7 +39,7 @@ export function live(
   const message = (title: string, text: string, retry = false) => {
     root.innerHTML = `<div class="error"><h1>${title}</h1><p>${text}</p>${
       retry ? '<button type="button" class="go" data-retry>Try Again</button>' : ''
-    }<a class="go${retry ? ' sub' : ''}" href="#/">${icon.home}<span>All Timetables</span></a></div>`
+    }${home ? `<a class="go${retry ? ' sub' : ''}" href="#/">${icon.home}<span>All Timetables</span></a>` : ''}</div>`
     // 電波が戻ったら開き直せるように（ハッシュはそのままなので、読み込み直すと同じタイムテーブルを開く）
     root.querySelector('[data-retry]')?.addEventListener('click', () => location.reload())
   }

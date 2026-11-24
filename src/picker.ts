@@ -10,7 +10,7 @@ const ITEM = 44 // ホイール1行の高さ（px）。style.css の .wheel-item
 const p2 = (n: number) => String(n).padStart(2, '0')
 
 /** 下からせり上がるパネルを開く。閉じると remove される */
-function openSheet(label: string, body: string): { root: HTMLElement; close: () => void } {
+export function openSheet(label: string, body: string): { root: HTMLElement; close: () => void } {
   const root = document.createElement('div')
   root.className = 'sheet-root'
   root.innerHTML = `
@@ -254,36 +254,5 @@ export function ask(o: {
     root.querySelector('.ask-cancel')?.addEventListener('click', () => done(false))
     const f = root.querySelector<HTMLInputElement>('.ask-field')
     if (f) setTimeout(() => (f.focus(), f.select()), 250)
-  })
-}
-
-/** 1行の文字を入力してもらう（入力欄つきのシート）。取り消したら null */
-export function askText(o: { title: string; text?: string; ok: string; placeholder?: string; value?: string }): Promise<string | null> {
-  return new Promise((resolve) => {
-    const { root, close } = openSheet(
-      o.title,
-      `<header class="sheet-h"><span class="sheet-t">${esc(o.title)}</span></header>
-       ${o.text ? `<p class="ask-text">${esc(o.text)}</p>` : ''}
-       <form class="ask-form" novalidate>
-         <input class="ask-field" type="text" inputmode="url" autocomplete="off" autocapitalize="off" spellcheck="false"
-           value="${esc(o.value ?? '')}" placeholder="${esc(o.placeholder ?? '')}" aria-label="${esc(o.title)}">
-         <div class="ask-btns">
-           <button type="button" class="ask-cancel">Cancel</button>
-           <button type="submit" class="ask-ok">${esc(o.ok)}</button>
-         </div>
-       </form>`,
-    )
-    const f = root.querySelector<HTMLInputElement>('.ask-field')!
-    const done = (v: string | null) => {
-      close()
-      resolve(v)
-    }
-    root.addEventListener('cancel', () => done(null))
-    root.querySelector('.ask-form')!.addEventListener('submit', (e) => {
-      e.preventDefault()
-      done(f.value.trim())
-    })
-    root.querySelector('.ask-cancel')!.addEventListener('click', () => done(null))
-    setTimeout(() => f.focus(), 250)
   })
 }

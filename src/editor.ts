@@ -3,6 +3,7 @@ import { cache, createEvent, deleteEvent, EditKeyError, forget, mine, saveEvent 
 import { fromMin, resolve, toMin, tzOffsetFor, type EventData, type Slot } from './data'
 import { icon } from './icons'
 import { ask, pickDate, pickTime } from './picker'
+import { copyText, links, saveQrPng, shareNote } from './share'
 import { esc, fmtHM, store, todayISO } from './util'
 
 /** 新しいタイムテーブルの初期値 */
@@ -12,13 +13,6 @@ export const newEventData = (): EventData => ({
   d: todayISO(),
   z: new Date().getTimezoneOffset(),
   s: [['21:00', '22:00', '']],
-})
-
-const base = () => `${location.origin}${location.pathname}`
-export const links = (id: string, key: string) => ({
-  dj: `${base()}#/dj/${id}`,
-  public: `${base()}#/t/${id}`,
-  edit: `${base()}#/edit/${id}/${key}`,
 })
 
 export const fmtDate = (d: string) => {
@@ -153,8 +147,10 @@ export function renderEditor(root: HTMLElement, ctx: { id?: string; key?: string
     dirty = false
     showSave('Saving…')
     try {
-      await saveEvent(id, key, ev)
-      mine.put({ id, key, t: ev.t, d: ev.d })
+      const sent = structuredClone(ev)
+      const rev = await saveEvent(id, key, sent)
+      mine.put({ id, key, t: sent.t, d: sent.d })
+      cache.put(id, { data: sent, rev }) // トップの「終了したイベント」の判定にも使う
       showSave(dirty ? 'Saving…' : 'Saved')
     } catch (err) {
       if (err instanceof EditKeyError) {
@@ -224,10 +220,7 @@ export function renderEditor(root: HTMLElement, ctx: { id?: string; key?: string
     if (draft) return
     root.querySelectorAll<HTMLButtonElement>('[data-tab]').forEach((b) => b.setAttribute('aria-selected', String(b.dataset.tab === tab)))
     $('link-v').textContent = url[tab].replace(/^https?:\/\//, '')
-    $('share-note').textContent =
-      tab === 'dj'
-        ? 'For DJs. Opens the timetable and their set timer. Ask them to open it once before the show, so it works without signal.'
-        : 'For everyone. Shows the timetable only.'
+    $('share-note').textContent = shareNote(tab)
     const qr = $<HTMLImageElement>('qr')
     const token = ++qrToken
     QRCode.toDataURL(url[tab], { margin: 1, width: 480, errorCorrectionLevel: 'M' })
@@ -239,22 +232,7 @@ export function renderEditor(root: HTMLElement, ctx: { id?: string; key?: string
       .catch(() => (qr.hidden = true))
   }
 
-  /** QRコードを画像（PNG）で書き出す。スマホは共有シート（写真に保存など）、それ以外はダウンロード */
-  const saveQr = async () => {
-    const dataUrl = await QRCode.toDataURL(url[tab], { margin: 4, width: 1024, errorCorrectionLevel: 'M' })
-    const safe = (ev.t || 'timetable').replace(/[^\w\-]+/g, '-').replace(/^-+|-+$/g, '').toLowerCase() || 'timetable'
-    const name = `taite-${safe}-${tab}-qr.png`
-    const blob = await (await fetch(dataUrl)).blob()
-    const file = new File([blob], name, { type: 'image/png' })
-    if (matchMedia('(pointer: coarse)').matches && navigator.canShare?.({ files: [file] })) {
-      await navigator.share({ files: [file], title: name }).catch(() => {})
-      return
-    }
-    const a = document.createElement('a')
-    a.href = dataUrl
-    a.download = name
-    a.click()
-  }
+  const saveQr = () => saveQrPng(url[tab], ev.t, tab)
 
   title.addEventListener('input', () => {
     ev.t = title.value
@@ -383,11 +361,7 @@ export function renderEditor(root: HTMLElement, ctx: { id?: string; key?: string
     const c = el.closest<HTMLButtonElement>('[data-copy]')
     if (c) {
       const text = url[c.dataset.copy === 'edit' ? 'edit' : tab]
-      try {
-        await navigator.clipboard.writeText(text)
-      } catch {
-        void ask({ title: 'Copy This Link', field: text, ok: 'Done', cancel: false })
-      }
+      await copyText(text)
       c.innerHTML = icon.check
       c.classList.add('done')
       setTimeout(() => {

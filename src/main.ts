@@ -2,7 +2,7 @@ import '@fontsource/barlow/latin-500.css'
 import '@fontsource/barlow/latin-600.css'
 import '@fontsource/barlow/latin-700.css'
 import './style.css'
-import { offerApp } from './applink'
+import { offerApp, openedFromApp } from './applink'
 import { cache, createEvent, fetchEvent, gigs, mine } from './api'
 import { decode, normalize, type EventData } from './data'
 import { newEventData, renderEditor } from './editor'
@@ -19,8 +19,8 @@ import { renderViewer } from './viewer'
     ?l=<id>,<id>…#/       トップ + 一覧（ホーム画面に追加した時に、アプリ側へ一覧を引き継ぐ）
     #/new                 新規作成（入力して Create で登録 → #/edit へ）
     #/edit/<id>/<key>     作成者の編集画面（鍵を持つ人だけ）
-    #/dj/<id>             DJ用: タイムテーブル + 自分のタイマー（リアルタイム）
-    #/t/<id>              一般用: タイムテーブルのみ（リアルタイム）
+    #/dj/<id>             DJ用: タイムテーブル + 自分のタイマー（リアルタイム）。リンクで開くとこのイベントだけ（一覧には戻れない）
+    #/t/<id>              一般用: タイムテーブルのみ（リアルタイム）。同上
     #v1.…                 以前の形式の共有リンク（中身がURLに入っている。更新はされない）
     #e.…                  以前の形式の編集リンク → 新しいタイムテーブルとして取り込む
 */
@@ -75,7 +75,7 @@ function route() {
   if (h.startsWith('v1.')) {
     const ev = decode(h)
     if (!ev) return show('Link broken', 'The URL may have been cut off. Ask for the link again.')
-    dispose = renderViewer(app, ev, { storeKey: `${ev.d}:${ev.t}`, homeHref: '#/' })
+    dispose = renderViewer(app, ev, { storeKey: `${ev.d}:${ev.t}` })
     return
   }
   // 以前の形式の編集リンク → 新しいタイムテーブルとして取り込む
@@ -124,21 +124,24 @@ function route() {
     return
   }
 
-  if (page === 'dj' && id) {
+  // DJ用・一般用: リンクで開いた時は、そのイベントだけを見せる（一覧には戻れない）。
+  // 一覧に加えるのは、アプリのトップの「リンク・QRコードから追加」から。一覧から開いた時だけ一覧へ戻れる
+  if ((page === 'dj' || page === 't') && id) {
+    const home = openedFromApp(id)
+    const synced = (data: EventData) => {
+      gigs.sync(id, data.t, data.d)
+      // アプリで使う案内はDJにだけ（一般客には出さない）
+      if (page === 'dj') offerApp(id, 'dj')
+    }
     dispose = live(
       app,
       id,
-      (data) => renderViewer(app, data, { storeKey: id, homeHref: '#/' }),
-      (data) => {
-        gigs.put({ id, t: data.t, d: data.d })
-        offerApp(id, 'dj')
-      },
+      page === 'dj'
+        ? (data) => renderViewer(app, data, { storeKey: id, homeHref: home ? '#/' : undefined })
+        : (data) => renderPublic(app, data),
+      synced,
+      home,
     )
-    return
-  }
-
-  if (page === 't' && id) {
-    dispose = live(app, id, (data) => renderPublic(app, data))
     return
   }
 

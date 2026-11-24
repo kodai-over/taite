@@ -40,6 +40,9 @@ body {
   -webkit-tap-highlight-color: transparent;
 }
 body.lock { overflow: hidden; }
+/* タイマー・タイムテーブル（画面に固定）の間は、ページ自体をスクロール・引っ張りできないようにする。
+   iPhone の Safari はページがずれると上端をぼかすので、ヘッダーがぼやけて見える */
+html:has(.deck), html:has(.deck) body { height: 100%; overflow: hidden; overscroll-behavior: none; }
 
 #app { min-height: 100dvh; }
 
@@ -153,7 +156,7 @@ a { text-decoration: none; }
 /* --- タイムテーブル（表として並べる） --- */
 .pane-table .top .ev { flex: 1; }
 .l-hint { margin: 0 2px; color: var(--dim); }
-.list { list-style: none; margin: 0; padding: 0 0 8px; overflow-y: auto; border-top: 1px solid var(--line); }
+.list { list-style: none; margin: 0; padding: 0 0 8px; overflow-y: auto; overscroll-behavior: contain; border-top: 1px solid var(--line); }
 .list li { border-bottom: 1px solid var(--line); }
 .list .row {
   width: 100%;
@@ -384,7 +387,8 @@ button.go { border: 0; }
 .h-row:active { background: var(--raised); }
 .h-empty { margin: 4px 6px 14px; color: var(--dim); }
 .home .e-head { align-items: center; justify-content: space-between; }
-.home .add { background: var(--ink); color: #111; }
+.h-acts { display: flex; align-items: center; gap: 8px; }
+.home .add { margin: 0; background: var(--ink); color: #111; }
 .home .add:active { background: var(--dim); }
 .h-list .edit { background: transparent; color: var(--dim); }
 

@@ -58,6 +58,9 @@ export const gigs = {
     const list = readList<GigItem>('taite:gigs').filter((g) => g.id !== item.id)
     writeList('taite:gigs', [{ ...item, at: Date.now() }, ...list].slice(0, 50))
   },
+  /** 並び順（at）を変えずに書き換える */
+  update: (item: GigItem) =>
+    writeList('taite:gigs', readList<GigItem>('taite:gigs').map((g) => (g.id === item.id ? item : g))),
   remove: (id: string) => writeList('taite:gigs', readList<GigItem>('taite:gigs').filter((g) => g.id !== id)),
 }
 

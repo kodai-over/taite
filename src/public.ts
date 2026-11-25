@@ -1,9 +1,11 @@
 import { fmtDate } from './editor'
 import { resolve, type EventData } from './data'
+import { icon } from './icons'
 import { esc, fmtHM, now } from './util'
 
 /** 一般用: タイムテーブルだけのシンプルな画面（今プレイ中の行の時刻を緑に） */
-export function renderPublic(root: HTMLElement, ev: EventData): () => void {
+export function renderPublic(root: HTMLElement, ev: EventData, opts: { homeHref?: string; onApp?: () => void } = {}): () => void {
+  const { homeHref, onApp } = opts
   const slots = resolve(ev)
   root.innerHTML = `
   <div class="public">
@@ -11,6 +13,9 @@ export function renderPublic(root: HTMLElement, ev: EventData): () => void {
       <h1 class="pub-t">${esc(ev.t || 'Timetable')}</h1>
       <p class="pub-d">${esc(ev.d ? fmtDate(ev.d) : '')}</p>
       <span class="sync" hidden></span>
+      ${homeHref || onApp ? `<div class="pub-acts">${homeHref ? `<a class="ibtn" href="${homeHref}" aria-label="All Timetables" title="All Timetables">${icon.home}</a>` : ''}${
+        onApp ? `<button type="button" class="ibtn to-app" title="Open in App">${icon.app}<span>Open in App</span></button>` : ''
+      }</div>` : ''}
     </header>
     <ol class="list pub-list">
       ${slots
@@ -27,6 +32,7 @@ export function renderPublic(root: HTMLElement, ev: EventData): () => void {
     </ol>
     ${slots.length ? '' : '<p class="h-empty">No sets yet.</p>'}
   </div>`
+  if (onApp) root.querySelector('.to-app')!.addEventListener('click', onApp)
   const items = [...root.querySelectorAll<HTMLLIElement>('.pub-list li')]
   const tick = () => {
     const t = now()

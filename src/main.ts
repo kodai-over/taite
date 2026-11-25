@@ -2,7 +2,7 @@ import '@fontsource/barlow/latin-500.css'
 import '@fontsource/barlow/latin-600.css'
 import '@fontsource/barlow/latin-700.css'
 import './style.css'
-import { offerApp, openedFromApp } from './applink'
+import { offerApp, openInApp, openedFromApp, standalone } from './applink'
 import { cache, createEvent, fetchEvent, gigs, mine } from './api'
 import { decode, normalize, type EventData } from './data'
 import { newEventData, renderEditor } from './editor'
@@ -127,18 +127,23 @@ function route() {
   // DJ用・一般用: リンクで開いた時は、そのイベントだけを見せる（一覧には戻れない）。
   // 一覧に加えるのは、アプリのトップの「リンク・QRコードから追加」から。一覧から開いた時だけ一覧へ戻れる
   if ((page === 'dj' || page === 't') && id) {
-    const home = openedFromApp(id)
+    // ホーム画面のアプリで開いた時（リンクのページから追加したアプリが、このページから起動した時など）は、
+    // 本人の端末のアプリなので一覧に加え、一覧へ戻れるようにする
+    const inApp = standalone()
+    const home = inApp || openedFromApp(id)
+    const onApp = home ? undefined : () => openInApp(id, 'dj')
     const synced = (data: EventData) => {
-      gigs.sync(id, data.t, data.d)
-      // アプリで使う案内はDJにだけ（一般客には出さない）
+      if (inApp && !mine.get(id) && !gigs.all().some((g) => g.id === id)) gigs.put({ id, t: data.t, d: data.d })
+      else gigs.sync(id, data.t, data.d)
+      // 自動で出す案内はDJにだけ（一般客には出さない。一般客はボタンから）
       if (page === 'dj') offerApp(id, 'dj')
     }
     dispose = live(
       app,
       id,
       page === 'dj'
-        ? (data) => renderViewer(app, data, { storeKey: id, homeHref: home ? '#/' : undefined })
-        : (data) => renderPublic(app, data),
+        ? (data) => renderViewer(app, data, { storeKey: id, homeHref: home ? '#/' : undefined, onApp })
+        : (data) => renderPublic(app, data, { homeHref: home ? '#/' : undefined, onApp }),
       synced,
       home,
     )

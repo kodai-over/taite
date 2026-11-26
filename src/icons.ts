@@ -28,6 +28,8 @@ export const icon = {
   link: svg('<path d="M10 14a4 4 0 0 0 5.5 0l3-3a4 4 0 0 0-5.5-5.5l-1 1"/><path d="M14 10a4 4 0 0 0-5.5 0l-3 3a4 4 0 0 0 5.5 5.5l1-1"/>'),
   /** 削除 */
   trash: svg('<path d="M5 7h14M9.5 7V4.5h5V7M7 7l.8 12.5h8.4L17 7M10 11v5M14 11v5"/>'),
+  /** アプリで開く（スマホと矢印） */
+  app: svg('<path d="M7.5 3.5h9v17h-9z"/><path d="M10.5 17.5h3"/><path d="M12 6.5v6.5M9.5 10.5 12 13l2.5-2.5"/>'),
   copy: svg('<path d="M9 9h10v10H9z"/><path d="M5 15V5h10"/>'),
   check: svg('<path d="M5 12.5l4.5 4.5L19 7.5"/>'),
   /** 書き出し（保存） */

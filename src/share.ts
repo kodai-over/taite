@@ -20,12 +20,36 @@ export const shareNote = (tab: Tab) =>
     ? 'For DJs. Opens the timetable and their set timer. Ask them to open it once before the show, so it works without signal.'
     : 'For everyone. Shows the timetable only.'
 
-/** クリップボードへコピー。できない時は、手でコピーできるようリンクを表示する */
+/** 古い方法でのコピー（http で開いた時など、navigator.clipboard が使えない時）。押した直後に同期で呼ぶこと */
+function legacyCopy(text: string): boolean {
+  const t = document.createElement('textarea')
+  t.value = text
+  t.setAttribute('readonly', '')
+  // 16px 未満だと iPhone が画面を拡大する
+  t.style.cssText = 'position:fixed;top:0;left:0;width:1px;height:1px;opacity:0;font-size:16px'
+  document.body.append(t)
+  t.select()
+  t.setSelectionRange(0, text.length)
+  let ok = false
+  try {
+    ok = document.execCommand('copy')
+  } catch {
+    ok = false
+  }
+  t.remove()
+  return ok
+}
+
+/** クリップボードへコピー。どの方法でもできない時だけ、手でコピーできるようリンクを表示する */
 export async function copyText(text: string) {
+  if (!navigator.clipboard?.writeText) {
+    if (!legacyCopy(text)) void ask({ title: 'Copy This Link', field: text, ok: 'Done', cancel: false })
+    return
+  }
   try {
     await navigator.clipboard.writeText(text)
   } catch {
-    void ask({ title: 'Copy This Link', field: text, ok: 'Done', cancel: false })
+    if (!legacyCopy(text)) void ask({ title: 'Copy This Link', field: text, ok: 'Done', cancel: false })
   }
 }
 

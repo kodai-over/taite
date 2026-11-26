@@ -1,4 +1,4 @@
-import { addFromText, markFromApp, standalone } from './applink'
+import { addFound, ios, lookUp, markFromApp, standalone } from './applink'
 import { cache, deleteEvent, EditKeyError, fetchEvent, forget, gigs, mine } from './api'
 import { resolve } from './data'
 import { fmtDate } from './editor'
@@ -35,6 +35,16 @@ function ended(x: { id: string; d: string }): boolean {
   const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(x.d)
   return !!m && new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]) + 1, 12).getTime() <= now()
 }
+
+/** ブラウザ（スマホ）で開いている時だけ、トップをホーム画面に追加してアプリとして使う方法を出す */
+const install = () =>
+  standalone() || !matchMedia('(pointer: coarse)').matches
+    ? ''
+    : `<p class="h-install">${
+        ios()
+          ? 'To use TAITE as an app, tap Share, then Add to Home Screen.'
+          : "To use TAITE as an app, open your browser's menu and choose Add to Home Screen."
+      }</p>`
 
 /** スライドして止めた時に見せる操作ボタンの幅（px）。左端: 編集・リンク発行 / 右端: 削除 */
 const LEAD = 160
@@ -86,6 +96,7 @@ export function renderHome(root: HTMLElement): () => void {
           <a class="ibtn add" href="#/new" aria-label="New Timetable" title="New Timetable">${icon.plus}</a>
         </div>
       </header>
+      ${install()}
       ${
         list.length
           ? `<ul class="grp h-list">${list
@@ -116,13 +127,12 @@ export function renderHome(root: HTMLElement): () => void {
       }
     </div>`
     root.querySelector('.scan')!.addEventListener('click', () =>
-      openAdd(async (text) => {
-        const err = await addFromText(text)
-        if (!err && !gone) {
+      openAdd(lookUp, (f) => {
+        addFound(f)
+        if (f.kind !== 'edit' && !gone) {
           render()
           fill()
         }
-        return err
       }),
     )
     openRow = null

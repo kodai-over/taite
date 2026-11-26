@@ -17,6 +17,8 @@ export interface ViewerOptions {
   storeKey: string
   /** 一覧（ホーム）へのリンク */
   homeHref?: string
+  /** リンクで開いた時の「アプリで開く」ボタン（押した時の処理） */
+  onApp?: () => void
 }
 
 /**
@@ -95,6 +97,7 @@ export function renderViewer(root: HTMLElement, ev: EventData, opts: ViewerOptio
         ${opts.homeHref ? `<a class="ibtn" href="${opts.homeHref}" aria-label="All Timetables" title="All Timetables">${icon.home}</a>` : ''}
         <span class="ev">${title}</span>
         <span class="sync" hidden></span>
+        ${opts.onApp ? `<button type="button" class="ibtn to-app" title="Open in App">${icon.app}<span>Open in App</span></button>` : ''}
       </header>
       ${slots.length ? '' : '<p class="l-hint">This link has no sets</p>'}
       <ol id="list" class="list">
@@ -166,6 +169,7 @@ export function renderViewer(root: HTMLElement, ev: EventData, opts: ViewerOptio
     if (b) openTimer(b.dataset.name!)
   })
   $('to-table').addEventListener('click', openTable)
+  if (opts.onApp) root.querySelector('.to-app')!.addEventListener('click', opts.onApp)
   const onPop = (e: PopStateEvent) => {
     view = (e.state as { taite?: string } | null)?.taite === 'timer' ? 'timer' : 'table'
     renderView()

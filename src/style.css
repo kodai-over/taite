@@ -565,3 +565,26 @@ html:has(.home), html:has(.home) body { height: 100%; overflow: hidden; overscro
   .deck[data-view] .pane-timer, .deck[data-view] .pane-table { display: flex; }
   #to-table { display: none; }
 }
+
+/* ---------- トップ: 並べ替え・一覧の整理パネル ---------- */
+.sort-list { display: grid; margin: 2px 0 10px; }
+.sort-opt {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  min-height: 48px; padding: 0 4px; border: 0; border-bottom: 1px solid var(--line);
+  background: transparent; color: var(--ink); font-size: 17px; text-align: left;
+}
+.sort-opt[aria-checked='true'] { font-weight: 700; }
+.sort-opt .ic { width: 20px; height: 20px; }
+.sort-dir { display: flex; gap: 8px; margin-bottom: 14px; }
+.sort-dir button {
+  flex: 1; min-height: 44px; border: 0; border-radius: var(--r);
+  background: var(--body); color: var(--dim); font-size: 16px; font-weight: 600;
+}
+.sort-dir button[aria-checked='true'] { background: var(--ink); color: #111; }
+.sort-clear {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  width: 100%; min-height: 48px; margin-top: 2px; border: 0; border-radius: var(--r);
+  background: var(--body); color: var(--w1); font-size: 17px; font-weight: 700;
+}
+.sort-clear .ic { width: 18px; height: 18px; }
+.sort-clear:disabled { opacity: 0.4; }

@@ -6,7 +6,8 @@ import { icon } from './icons'
 import { ask } from './picker'
 import { openAdd } from './scan'
 import { openLinks } from './share'
-import { esc, now } from './util'
+import { esc, now, store } from './util'
+import { openSheet } from './picker'
 
 const ID = /^[A-Za-z0-9_-]{1,40}$/
 
@@ -36,6 +37,43 @@ function ended(x: { id: string; d: string }): boolean {
   return !!m && new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]) + 1, 12).getTime() <= now()
 }
 
+
+/* ---------- 並べ替え ---------- */
+type SortKey = 'date' | 'name' | 'added'
+type SortDir = 'asc' | 'desc'
+interface Sort { key: SortKey; dir: SortDir }
+const SORTS: { key: SortKey; label: string; asc: string; desc: string; first: SortDir }[] = [
+  { key: 'date', label: 'Event Date', asc: 'Oldest first', desc: 'Newest first', first: 'desc' },
+  { key: 'name', label: 'Event Name', asc: 'A to Z', desc: 'Z to A', first: 'asc' },
+  { key: 'added', label: 'Date Added', asc: 'Oldest first', desc: 'Newest first', first: 'desc' },
+]
+const DEFAULT_SORT: Sort = { key: 'date', dir: 'desc' }
+const SORT_KEY = 'taite:sort'
+
+function loadSort(): Sort {
+  try {
+    const v = JSON.parse(store.get(SORT_KEY) || 'null')
+    if (SORTS.some((o) => o.key === v?.key) && (v?.dir === 'asc' || v?.dir === 'desc')) return v
+  } catch {
+    /* 保存した値が壊れている */
+  }
+  return DEFAULT_SORT
+}
+
+/** 一覧を並べ替える。日付・名前がまだないもの（読み込み中など）は、向きにかかわらず最後。同じ値なら追加が新しい順 */
+function sortList<T extends { t: string; d: string; at: number }>(list: T[], { key, dir }: Sort): T[] {
+  const sign = dir === 'asc' ? 1 : -1
+  const empty = (x: T) => (key === 'date' ? !x.d : key === 'name' ? !x.t.trim() : false)
+  return [...list].sort((a, b) => {
+    if (empty(a) !== empty(b)) return empty(a) ? 1 : -1
+    let c = 0
+    if (key === 'date') c = a.d < b.d ? -1 : a.d > b.d ? 1 : 0
+    else if (key === 'name') c = a.t.trim().localeCompare(b.t.trim(), undefined, { numeric: true, sensitivity: 'base' })
+    else c = a.at - b.at
+    return c * sign || b.at - a.at
+  })
+}
+
 /** ブラウザ（スマホ）で開いている時だけ、トップをホーム画面に追加してアプリとして使う方法を出す */
 const install = () =>
   standalone() || !matchMedia('(pointer: coarse)').matches
@@ -61,14 +99,17 @@ const FULL = 0.55
  */
 export function renderHome(root: HTMLElement): () => void {
   let gone = false
+  let sort = loadSort()
   importFromUrl()
 
   const render = () => {
     const keys = new Map(mine.all().map((m) => [m.id, m.key]))
     const seen = new Set<string>()
-    const list = [...mine.all(), ...gigs.all()]
-      .sort((a, b) => b.at - a.at)
-      .filter((x) => !seen.has(x.id) && seen.add(x.id))
+    // 同じものが両方にある時は、新しく追加した方を残す
+    const list = sortList(
+      [...mine.all(), ...gigs.all()].sort((a, b) => b.at - a.at).filter((x) => !seen.has(x.id) && seen.add(x.id)),
+      sort,
+    )
 
     // ブラウザでは、一覧をURL（?l=…）に載せておく（このページをホーム画面に追加した時に引き継ぐため）。
     // iPhone はページを読み込んだ時のURLを起動先にするので、一覧が変わった時だけ読み込み直す。
@@ -92,6 +133,7 @@ export function renderHome(root: HTMLElement): () => void {
       <header class="e-head">
         <h1 class="brand">TAITE</h1>
         <div class="h-acts">
+          <button type="button" class="ibtn sort" aria-label="Sort and Clean Up" title="Sort and Clean Up">${icon.sort}</button>
           <button type="button" class="ibtn scan" aria-label="Add from Link or QR Code" title="Add from Link or QR Code">${icon.scan}</button>
           <a class="ibtn add" href="#/new" aria-label="New Timetable" title="New Timetable">${icon.plus}</a>
         </div>
@@ -126,6 +168,7 @@ export function renderHome(root: HTMLElement): () => void {
           : '<p class="h-empty">No timetables yet. Tap + to create one, or tap the scan icon to add one from a link or QR code.</p>'
       }
     </div>`
+    root.querySelector('.sort')!.addEventListener('click', openMenu)
     root.querySelector('.scan')!.addEventListener('click', () =>
       openAdd(lookUp, (f) => {
         addFound(f)
@@ -137,6 +180,92 @@ export function renderHome(root: HTMLElement): () => void {
     )
     openRow = null
     rows = list
+  }
+
+
+  /* ---------- 並べ替え・終わったイベントの一括削除 ---------- */
+  const openMenu = () => {
+    const endedRows = rows.filter(ended)
+    const ownEnded = endedRows.filter((x) => mine.get(x.id))
+    const { root: sheet, close } = openSheet(
+      'Sort and Clean Up',
+      `<header class="sheet-h"><span class="sheet-t">Sort by</span></header>
+       <div class="sort-list" role="radiogroup" aria-label="Sort by">${SORTS.map(
+         (o) => `<button type="button" class="sort-opt" role="radio" aria-checked="${o.key === sort.key}" data-key="${o.key}">
+           <span>${o.label}</span>${o.key === sort.key ? icon.check : ''}</button>`,
+       ).join('')}</div>
+       <div class="sort-dir" role="radiogroup" aria-label="Order">${(['desc', 'asc'] as const)
+         .map((d) => {
+           const o = SORTS.find((x) => x.key === sort.key)!
+           return `<button type="button" role="radio" aria-checked="${d === sort.dir}" data-dir="${d}">${o[d]}</button>`
+         })
+         .join('')}</div>
+       <header class="sheet-h"><span class="sheet-t">Clean up</span></header>
+       <button type="button" class="sort-clear" ${endedRows.length ? '' : 'disabled'}>${icon.trash}<span>Delete Ended Events${endedRows.length ? ` (${endedRows.length})` : ''}</span></button>`,
+    )
+    const choose = (next: Sort) => {
+      sort = next
+      store.set(SORT_KEY, JSON.stringify(sort))
+      close()
+      render()
+    }
+    sheet.addEventListener('cancel', close)
+    sheet.querySelectorAll<HTMLElement>('.sort-opt').forEach((b) =>
+      b.addEventListener('click', () => {
+        const key = b.dataset.key as SortKey
+        // 同じものをもう一度選んだら今の向きのまま、別のものに替えたら、その並びの標準の向きから
+        choose(key === sort.key ? sort : { key, dir: SORTS.find((o) => o.key === key)!.first })
+      }),
+    )
+    sheet.querySelectorAll<HTMLElement>('.sort-dir button').forEach((b) =>
+      b.addEventListener('click', () => choose({ key: sort.key, dir: b.dataset.dir as SortDir })),
+    )
+    sheet.querySelector('.sort-clear')!.addEventListener('click', () => {
+      close()
+      void clearEnded(endedRows, ownEnded.length)
+    })
+  }
+
+  /** 終わったイベントをまとめて削除する。自分が作ったものはサーバーからも消し、追加しただけのものは一覧から外す */
+  const clearEnded = async (items: typeof rows, ownCount: number) => {
+    if (!items.length) return
+    const other = items.length - ownCount
+    const parts = []
+    if (ownCount) parts.push(`${ownCount} you created will be deleted. Their DJ and public links will stop working.`)
+    if (other) parts.push(`${other} you added will be removed from this list.`)
+    const yes = await ask({
+      title: `Delete ${items.length} ended ${items.length === 1 ? 'event' : 'events'}?`,
+      text: `${parts.join(' ')} This can't be undone.`,
+      ok: 'Delete',
+      danger: true,
+    })
+    if (!yes) return
+    let failed = 0
+    let badKey = 0
+    for (const x of items) {
+      const own = mine.get(x.id)
+      if (!own) {
+        gigs.remove(x.id)
+        continue
+      }
+      try {
+        await deleteEvent(x.id, own.key)
+        forget(x.id)
+      } catch (err) {
+        if (err instanceof EditKeyError) badKey++
+        else failed++
+      }
+    }
+    if (!gone) render()
+    if (failed || badKey)
+      void ask({
+        title: `${failed + badKey} Couldn't Be Deleted`,
+        text: failed
+          ? 'Connect to the internet and try again.'
+          : 'The edit link no longer works for these timetables.',
+        ok: 'OK',
+        cancel: false,
+      })
   }
 
   /* ---------- 行のスライド（スマホ。iOS のメールと同じ） ---------- */

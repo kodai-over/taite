@@ -26,6 +26,8 @@ export const icon = {
   image: svg('<path d="M4.5 5.5h15v13h-15z"/><path d="M4.5 16l4.5-4.5 3.5 3.5 2.5-2.5 5 5"/><path d="M9 8.6v.01" stroke-width="2.4" stroke-linecap="round"/>'),
   /** リンクを発行する */
   link: svg('<path d="M10 14a4 4 0 0 0 5.5 0l3-3a4 4 0 0 0-5.5-5.5l-1 1"/><path d="M14 10a4 4 0 0 0-5.5 0l-3 3a4 4 0 0 0 5.5 5.5l1-1"/>'),
+  /** 並べ替え・一覧の整理 */
+  sort: svg('<path d="M7.5 19V5M4 8.5 7.5 5 11 8.5"/><path d="M16.5 5v14M13 15.5l3.5 3.5 3.5-3.5"/>'),
   /** 削除 */
   trash: svg('<path d="M5 7h14M9.5 7V4.5h5V7M7 7l.8 12.5h8.4L17 7M10 11v5M14 11v5"/>'),
   /** アプリで開く（スマホと矢印） */
